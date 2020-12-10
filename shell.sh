@@ -22,7 +22,7 @@ Install_software(){
             continue 
         fi 
         if ! type ${f} > /dev/null 2>&1; then
-            echo -e "\033[41;30m ${f} 未安装 \033[0m"
+            echo -e "\033[41;30m ${f} Not Installed \033[0m"
             case $1 in
                 debian|ubuntu|devuan|deepin)
                     if test ${f} == "lolcat"
@@ -48,7 +48,7 @@ Install_software(){
                 arch|manjaro)
                     pacman -S ${f}
                     if [ $? -ne 0 ]; then
-                        echo -e "\033[33m 使用 pacman 安装 ${f} 失败，尝试使用 yay 安装 \033[0m"
+                        echo -e "\033[33m Use pacman to install ${f} failed, try to install with yay \033[0m"
                         # yay_var 记录下原本安装的软件
                         yay_var=${f}
                         Install_software $1 yay
@@ -56,19 +56,19 @@ Install_software(){
                     fi
                     ;;
                 *)
-                    echo -e "\033[43;37m 脚本不适用 $1 系统 \033[0m"
+                    echo -e "\033[43;37m The script is not applicable to the $1 system \033[0m"
                     exit 1
                 ;;
             esac
         else
-            echo -e "\033[45;37m ${f} 已安装 \033[0m"
+            echo -e "\033[45;37m ${f} is installed \033[0m"
         fi
     done
 }
 
 # 切换 root 用户
 Check_root(){
-    [[ $EUID != 0 ]] && echo -e "\033[31m 当前账号非 ROOT (或没有ROOT权限)，无法继续操作，请使用 sudo su 来获取临时 ROOT 权限（执行后会提示输入当前账号的密码）\033[0m" && exit 1
+    [[ $EUID != 0 ]] && echo -e "\033[31m The current account is not ROOT (or does not have ROOT permissions), and you cannot continue to operate, please use 'sudo su' to obtain temporary ROOT permissions (you will be prompted to enter the password of the current account after execution) \033[0m" && exit 1
 }
 
 # 检测网络链接畅通
@@ -82,7 +82,7 @@ Network_check()
     local ret_code=`curl -I -s --connect-timeout ${timeout} ${target} -w %{http_code} | tail -n1`
     if [ "x$ret_code" = "x200" ]; then
         #网络畅通
-        echo -e "\033[36m网络: 已连接 \033[0m"
+        echo -e "\033[36mNetwork: connected \033[0m"
         return 1
     else
         #网络不畅通
@@ -92,32 +92,32 @@ Network_check()
 }
 
 Network_link(){
-    echo -e "\033[45;37m输入编号[1~n]选择联网方式（推荐: WIFI） \033[0m"
-    select net in "WIFI热点" "DHCP网线" "ADSL电话线" "跳过"
+    echo -e "\033[45;37mEnter the number [1~n] to select the networking method (recommended: WIFI) \033[0m"
+    select net in "WIFI" "DHCP" "ADSL" "SKIP"
     do
         case ${net} in
-            "WIFI热点")
-                echo "使用 WIFI 连接"
+            "WIFI")
+                echo "Use WIFI connection"
                 wifi-menu
                 break
                 ;;
-            "DHCP网线")
-                echo "使用 DHCP 连接"
+            "DHCP")
+                echo "Use DHCP connection"
                 dhcpcd
                 break
                 ;;
-            "ADSL电话线")
-                echo "使用 ADSL 连接"
+            "ADSL")
+                echo "Use ADSL connection"
                 pppoe-setup
                 systemctl start adsl
                 break
                 ;;
-            "跳过")
-                echo -e "\033[41;30m 跳过联网 联网失败 \033[0m"
+            "SKIP")
+                echo -e "\033[41;30m Skip network connection failed \033[0m"
                 exit 1
                 ;;
             *)
-                echo -e "\033[43;37m 输入错误，请重新输入 \033[0m"
+                echo -e "\033[43;37m Input errors, please re-enter \033[0m"
         esac
     done
 
@@ -129,17 +129,17 @@ System_check(){
     Check_root
 
     # 检查系统类型
-    echo -e "\033[45;37m 检查当前操作系统 \033[0m"
+    echo -e "\033[45;37m Check the current operating system \033[0m"
     source /etc/os-release
-    echo "系统: $ID"
+    echo "System: $ID"
     
     # 检查 x86_64 架构
     bit=`uname -m`
     if test ${bit} == "x86_64" ;then
         bit="x86_64"
-        echo "架构: ${bit}"
+        echo "Architecture: ${bit}"
     else
-        echo -e "\033[43;37m 脚本不适用非 x86_64 架构系统 \033[0m"
+        echo -e "\033[43;37m The script is not applicable to non-x86_64 architecture systems \033[0m"
         exit 1
     fi
     
@@ -147,7 +147,7 @@ System_check(){
     Network_check
     if [ $? -eq 0 ];then
         echo
-        echo -e "\033[31m 网络不畅通，请检查网络设置 \033[0m"
+        echo -e "\033[31m The network is not smooth, please check the network settings \033[0m"
         Network_link
         exit 1
     fi
@@ -194,14 +194,14 @@ Test_function(){
 
 # 制作启动盘
 Dd_iso(){
-    echo -e "\033[45;37m 即将制作启动盘 \033[0m"
+    echo -e "\033[45;37m About to make a boot disk \033[0m"
     # 判断是否插入 U 盘
     usb_status=`ls /proc/scsi/ | grep usb-storage`
     if [[ ${usb_status} != "" ]]; then
-        echo "U 盘已经插入" && echo
+        echo "USB flash drive has been inserted" && echo
         # 判断 U 盘大小
         lsblk
-        read -e -p "输入你想要写入的设备（默认：sdb）:" dd_disk
+        read -e -p "Enter the device you want to write to (default: sdb):" dd_disk
         if [[ ${dd_disk} == "" ]]; then
             dd_disk="sdb"
         fi
@@ -209,10 +209,10 @@ Dd_iso(){
         # 判断路径是否正确
         ls /dev/${dd_disk} >/dev/null 2>&1
         if test $? != 0 ;then
-            echo -e "\033[41;37m 路径不存在 \033[0m"
+            echo -e "\033[41;37m Path does not exist \033[0m"
             exit 1
         fi
-        echo "U 盘路径: /dev/${dd_disk}" && echo
+        echo "USB flash drive path: /dev/${dd_disk}" && echo
 
         # 判断 U 盘是 TB 还是 GB
         disk_unit=`fdisk -l /dev/${dd_disk} | awk -F " " 'NR==1{print $4}' | cut -d "," -f 1`
@@ -222,55 +222,55 @@ Dd_iso(){
         elif test $disk_unit == "TiB"; then
             dd_disk_size=`awk 'BEGIN{print '${disk_GB}'*1024*1024*1024*1024}'`
         else
-            echo -e "\033[41;30m U 盘可用空间不足，请更换 U 盘后再试 \033[0m"
+            echo -e "\033[41;30m The available space of the USB flash drive is insufficient, please replace the USB flash drive and try again \033[0m"
             exit 1
         fi
         
-        echo -e "\033[45;37m U 盘容量: `fdisk -l /dev/${dd_disk} | awk -F " " 'NR==1{print $3}'` `fdisk -l /dev/${dd_disk} | awk -F " " 'NR==1{print $4}' | cut -d "," -f 1` \033[0m"
+        echo -e "\033[45;37m USB flash drive size: `fdisk -l /dev/${dd_disk} | awk -F " " 'NR==1{print $3}'` `fdisk -l /dev/${dd_disk} | awk -F " " 'NR==1{print $4}' | cut -d "," -f 1` \033[0m"
         if test $[dd_disk_size] -gt $[iso_d_size]; then
-            echo -e "\033[43;37m 开始写入 \033[0m"
+            echo -e "\033[43;37m Start writing \033[0m"
             dd if=archlinux-${sh_ver}-${bit}.iso of=/dev/${dd_disk} bs=1440k oflag=sync
-            echo -e "\033[45;37m 写入完成\033[0m"
+            echo -e "\033[45;37m Write complete\033[0m"
         else
-            echo -e "\033[41;30m U 盘可用空间不足，请更换 U 盘后再试 \033[0m"
+            echo -e "\033[41;30m The USB flash drive has insufficient free space, please replace the USB flash drive and try again \033[0m"
         fi
     else
-        echo -e "\033[31m 请插入 U 盘后再试 \033[0m"
+        echo -e "\033[31m Please insert the USB flash drive and try again \033[0m"
     fi
 }
 
 #下载 iso 镜像
 Download_iso(){
-    echo -e "\033[45;37m 下载 iso 镜像 \033[0m"
+    echo -e "\033[45;37m Download iso image \033[0m"
     if [[ -e ./archlinux-${sh_ver}-${bit}.iso ]] ;then 
         iso_d_size=`ls -l archlinux-${sh_ver}-${bit}.iso | awk '{print $5}'`
-        echo "archlinux-${sh_ver}-${bit}.iso 镜像文件已存在（size: $(( ${iso_d_size}/1024/1024 )) MiB）" && echo
+        echo "archlinux-${sh_ver}-${bit}.iso Image file already exists（size: $(( ${iso_d_size}/1024/1024 )) MiB）" && echo
         
         #判断文件大小是否正确
         iso_f_size=$(( ${iso_size}*1024*1024 ))
         if test $[iso_d_size] -le $[iso_f_size]; then
-            echo -e "\033[41;30m iso 文件已损坏，正在重新下载 \033[0m"
+            echo -e "\033[41;30m iso The file is corrupted and is being downloaded again \033[0m"
             wget -N "http://mirrors.163.com/archlinux/iso/${sh_ver}/archlinux-${sh_ver}-${bit}.iso" archlinux-${sh_ver}-${bit}.iso
             Dd_iso
         else
             Dd_iso
         fi
     else 
-        read -e -p "当前文件夹下没有 archlinux-${sh_ver}-${bit}.iso 镜像，是否立即下载[y/n]:" iso_yn
+        read -e -p "There is no archlinux-${sh_ver}-${bit}.iso image in the current folder, whether to download it now [y/n]:" iso_yn
         [[ -z ${iso_yn} ]] && iso_yn="y"
         if [[ ${iso_yn} == [Yy] ]]; then
-            echo "\n正在下载 iso 镜像文件"
+            echo "\nDownloading iso image file"
             wget -N "http://mirrors.163.com/archlinux/iso/${sh_ver}/archlinux-${sh_ver}-${bit}.iso" archlinux-${sh_ver}-${bit}.iso
             Dd_iso
         else
-            echo -e "\033[43;37m 已取消启动盘制作 \033[0m"
+            echo -e "\033[43;37m Startup disk creation cancelled \033[0m"
         fi
     fi
 }
 
 # 检查分区情况是否合理
 Cfdisk_check(){
-    echo -e "\033[45;37m 检查分区结果 \033[0m"
+    echo -e "\033[45;37m Check partition results \033[0m"
     # part_count:类型为 part 的分区个数<int>
     part_lines=`lsblk -nlo TYPE |  sed -n  '/part/='`
     part_count=`lsblk -nlo TYPE | sed -n '/part/=' | awk 'END{print NR}'`
@@ -278,12 +278,12 @@ Cfdisk_check(){
 
     # 判断分区个数
     if ((${part_count} != 4)) ; then
-        echo -e "\033[31m 分区数量不合理，后退重新分区 \033[0m" 
+        echo -e "\033[31m Unreasonable number of partitions, go back and repartition \033[0m" 
         Cfdiak_ALL
         # 不进行自动挂载
     else
         # 检查分区情况和策略匹配程度
-        echo -e "可用磁盘数量: ${part_count}"
+        echo -e "Number of available disks:${part_count}"
         for part_line in ${part_lines}
         do
             name=`lsblk -nlo NAME | sed -n ${part_line}p`
@@ -314,27 +314,27 @@ Cfdisk_check(){
         done
         echo
         if ((${NO} != 0)) ; then
-            echo -e "\033[33m警告:您有${NO}个分区不合理（建议:重新分区）\033[0m"
-            select num in "重新分区" "继续" "退出脚本"
+            echo -e "\033[33mWarning: You have ${NO} partitions unreasonable (recommendation: repartition)\033[0m"
+            select num in "Repartition" "Next" "Exit"
             do
                 case ${num} in
-                    "重新分区")
+                    "Repartition")
                         Cfdiak_ALL
                         break
                         ;;
-                    "继续")
+                    "Next")
                         # 格式化分区
                         Mkfs_disks
                         break
                         ;;
-                    "退出脚本")
-                        echo -e "\033[41;30m 退出脚本 \033[0m"
+                    "Exit")
+                        echo -e "\033[41;30m Exit script \033[0m"
                         rm diskmap >/dev/null 2>&1 && echo
                         exit 1
                         break
                         ;;
                     *)
-                        echo -e "\033[43;37m 输入错误，请重新输入 \033[0m"
+                        echo -e "\033[43;37m Input errors, please re-enter \033[0m"
                 esac
             done
         fi
@@ -344,16 +344,16 @@ Cfdisk_check(){
 
 # 开始分区
 Cfdiak_ALL(){
-    echo -e "\033[45;37m 读取分区策略 \033[0m"
+    echo -e "\033[45;37m Read partition strategy \033[0m"
     cat diskmap && echo
-    echo -e "\033[43;37m 分区顺序 \033[0m"
-    echo "单磁盘:   EFI > SWAP > HOME > /"
-    echo "双磁盘:   EFI > SWAP > / > HOME"
-    read -e -p "分区过程中将无法查看分盘分区策略，建议先拍照记录再继续[y/n]:" cfdisk_yn
+    echo -e "\033[43;37m Partition order \033[0m"
+    echo "Single disk:   EFI > SWAP > HOME > /"
+    echo "Dual disk:   EFI > SWAP > / > HOME"
+    read -e -p "During the partitioning process, the partitioning strategy cannot be viewed. It is recommended to take a picture and record before continuing [y/n]:" cfdisk_yn
     [[ -z ${cfdisk_yn} ]] && cfdisk_yn="y"
     if [[ ${cfdisk_yn} == [Yy] ]]; then
         echo
-        echo -e "\033[45;37m 开始分区 \033[0m"
+        echo -e "\033[45;37m Start partition \033[0m"
         for disk_line in ${disk_lines}
         do
             var=`lsblk -nlo NAME | sed -n ${disk_line}p`
@@ -361,11 +361,11 @@ Cfdiak_ALL(){
         done
         # 分区完成查看一眼睛
         echo "分区成功" && echo
-        echo -e "\033[43;37m 查看分区结果 \033[0m"
+        echo -e "\033[43;37m View partition results \033[0m"
         lsblk && echo
         echo
     else
-        echo -e "\033[43;37m 已取消分区 \033[0m"
+        echo -e "\033[43;37mUnpartitioned \033[0m"
         echo
     fi
 
@@ -375,15 +375,15 @@ Cfdiak_ALL(){
 
 # 手动格式化
 Cm_disks(){
-    echo -e "\033[45;37m 手动格式化 \033[0m"
+    echo -e "\033[45;37m Manual format \033[0m"
     lsblk -nlo NAME,SIZE,TYPE,MOUNTPOINT | grep part
-    echo -e "\033[33m \n提示:部分命令如下: \033[0m"
-    echo -e "\033[36m [格式化] mkfs.ext4 /dev/根分区 \033[0m"
-    echo -e "\033[36m [格式化] mkfs.vfat /dev/EFI分区 \033[0m"
-    echo -e "\033[36m [格式化] mkswap -f /dev/Swap分区 \033[0m"
-    echo -e "\033[32m [打开] swapon /dev/Swap分区 \033[0m"
-    echo -e "\033[36m [格式化] mkfs.ext4 /dev/HOME分区 \033[0m"
-    echo -e "\033[33m \n(提示:键入 q 回车可结束命令输入)  \033[0m"
+    echo -e "\033[33m \nTip: Some commands are as follows:\033[0m"
+    echo -e "\033[36m [format] mkfs.ext4 /dev/Root partition \033[0m"
+    echo -e "\033[36m [format] mkfs.vfat /dev/EFI partition \033[0m"
+    echo -e "\033[36m [format] mkswap -f /dev/Swap partition \033[0m"
+    echo -e "\033[32m [open] swapon /dev/Swap partition \033[0m"
+    echo -e "\033[36m [format] mkfs.ext4 /dev/HOME partition \033[0m"
+    echo -e "\033[33m \n(Tip: Type q and press Enter to end the command input)  \033[0m"
     while true
     do
         read -e -p " >> " cmd
@@ -398,7 +398,7 @@ Cm_disks(){
             break
         fi
     done
-    echo -e "\n\033[33m[操作日志]\033[0m"
+    echo -e "\n\033[33m[Operation log]\033[0m"
     cat cmd.log >/dev/null 2>&1 
     rm cmd.log >/dev/null 2>&1 
     echo 
@@ -406,15 +406,15 @@ Cm_disks(){
 
 # 手动挂载
 Cm_mount(){
-    echo -e "\033[45;37m 手动挂载 \033[0m"
+    echo -e "\033[45;37m Manually mount \033[0m"
     lsblk -nlo NAME,SIZE,TYPE,MOUNTPOINT | grep part
-    echo -e "\033[33m \n提示:部分命令如下: \033[0m"
-    echo -e "\033[36m [挂载] mount /dev/根分区 /mnt \033[0m"
-    echo -e "\033[36m [创建] mkdir /mnt/home \033[0m"
-    echo -e "\033[36m [创建] mkdir -p /mnt/boot/EFI \033[0m"
-    echo -e "\033[32m [挂载] mount /dev/HOME分区 /mnt/home \033[0m"
-    echo -e "\033[36m [挂载] mount /dev/EFI分区 /mnt/boot/EFI \033[0m"
-    echo -e "\033[33m \n(提示:键入 q 回车可结束命令输入)  \033[0m"
+    echo -e "\033[33m \nTip: Some commands are as follows: \033[0m"
+    echo -e "\033[36m [Mount] mount /dev/Root partition /mnt \033[0m"
+    echo -e "\033[36m [create] mkdir /mnt/home \033[0m"
+    echo -e "\033[36m [create] mkdir -p /mnt/boot/EFI \033[0m"
+    echo -e "\033[32m [Mount] mount /dev/HOME partition /mnt/home \033[0m"
+    echo -e "\033[36m [Mount] mount /dev/EFI partition /mnt/boot/EFI \033[0m"
+    echo -e "\033[33m \n(Tip: Type q and press Enter to end the command input)  \033[0m"
     
     while true
     do
@@ -430,7 +430,7 @@ Cm_mount(){
             break
         fi
     done
-    echo -e "\n\033[33m[操作日志]\033[0m"
+    echo -e "\n\033[33m[Operation log]\033[0m"
     cat cmd.log >/dev/null 2>&1 
     rm cmd.log >/dev/null 2>&1 
     echo 
@@ -439,7 +439,7 @@ Cm_mount(){
 # 挂载分区
 Mount_parts(){
     echo
-    echo -e "\033[45;37m 挂载分区 \033[0m"
+    echo -e "\033[45;37m Mount partition \033[0m"
     if [ ! -d "/mnt/home" ]; then
         mkdir /mnt/home
    fi
@@ -449,15 +449,15 @@ Mount_parts(){
     
     if ((${NO} != 0)) ; then
         #手动挂载分区
-        echo -e "\033[33m警告:您有${NO}个分区不合理（建议:手动挂载）\033[0m"
-        select num in "重新分区" "手动挂载" "继续" "退出脚本"
+        echo -e "\033[33mWarning: You have ${NO} partitions unreasonable (recommendation: mount manually)\033[0m"
+        select num in "Repartition" "Manuallymount" "Next" "Exit"
         do
             case ${num} in
-                "重新分区")
+                "Repartition")
                     Cfdiak_ALL
                     break
                     ;;
-                "手动挂载")
+                "Manuallymount")
                     rm diskmap >/dev/null 2>&1 && echo
                     rm partmap >/dev/null 2>&1 && echo
                     # 手动挂载
@@ -465,20 +465,20 @@ Mount_parts(){
                     #Cm_disks
                     break
                     ;;
-                "继续")
+                "Next")
                     rm diskmap >/dev/null 2>&1 && echo
                     rm partmap >/dev/null 2>&1 && echo
                     break
                     ;;
-                "退出脚本")
-                    echo -e "\033[41;30m 退出脚本 \033[0m"
+                "Exit")
+                    echo -e "\033[41;30m Exit script \033[0m"
                     rm diskmap >/dev/null 2>&1 && echo
                     rm partmap >/dev/null 2>&1 && echo
                     exit 1
                 break
                     ;;
                 *)
-                    echo -e "\033[43;37m 输入错误，请重新输入 \033[0m"
+                    echo -e "\033[43;37m Input errors, please re-enter \033[0m"
             esac
         done
 
@@ -500,7 +500,7 @@ Mount_parts(){
                     echo -e "\033[33m[OK]\033[0m mount /dev/${name} /mnt/boot/EFI"
                     mount /dev/${name} /mnt/boot/EFI
                 elif ((${name_end} == 2)) ; then
-                    echo "swap 分区无需挂载"
+                    echo "No need to mount swap partition"
                 elif ((${name_end} == 3)) ; then
                     # 第三 home 分区
                     echo -e "\033[33m[OK]\033[0m mount /dev/${name} /mnt/home"
@@ -509,7 +509,7 @@ Mount_parts(){
                     echo -e "\033[33m[OK]\033[0m mount /dev/${name} /mnt"
                     mount /dev/${name} /mnt
                 else
-                    echo "未挂载的分区: /dev/${name}"
+                    echo "Unmounted partition:/dev/${name}"
                 fi
 
             elif ((${disk_count} == 2)) ; then
@@ -519,20 +519,20 @@ Mount_parts(){
                         echo -e "\033[33m[OK]\033[0m mount /dev/${name} /mnt/boot/EFI"
                         mount /dev/${name} /mnt/boot/EFI
                     elif ((${name_end} == 2)) ; then
-                        echo "swap 分区无需挂载"
+                        echo "No need to mount swap partition"
                     elif ((${name_end} == 3)) ; then
                         # 第三个根分区
                         echo -e "\033[33m[OK]\033[0m mount /dev/${name} /mnt"
                         mount /dev/${name} /mnt
                     else
-                        echo "未挂载的分区: /dev/${name}"
+                        echo "Unmounted partition: /dev/${name}"
                     fi
                 else
                     echo -e "\033[33m[OK]\033[0m mount /dev/${name} /mnt/home"
                     mount /dev/${name} /mnt/home
                 fi
             else
-                echo -e "\033[43;37m 无法挂载不明分区 \033[0m"
+                echo -e "\033[43;37m Unable to mount unknown partition \033[0m"
             fi
         done
     fi
@@ -543,18 +543,18 @@ Mount_parts(){
 # 格式化分区
 Mkfs_disks(){
     echo
-    echo -e "\033[45;37m 格式化分区 \033[0m"
+    echo -e "\033[45;37m Format partition \033[0m"
     if ((${NO} != 0)) ; then
         #手动格式化分区
-        echo -e "\033[33m警告:您有${NO}个分区不合理（建议:手动格式化）\033[0m"
-        select num in "重新分区" "手动格式化" "继续" "退出脚本"
+        echo -e "\033[33mWarning: You have ${NO} partitions unreasonable (recommendation: format manually) \033[0m"
+        select num in "Repartition" "Manualformat" "Next" "Exit"
         do
             case ${num} in
-                "重新分区")
+                "Repartition")
                     Cfdiak_ALL
                     break
                     ;;
-                "手动格式化")
+                "Manualformat")
                     rm diskmap >/dev/null 2>&1 && echo
                     # 手动格式化
                     Cm_disks
@@ -562,20 +562,20 @@ Mkfs_disks(){
                     Mount_parts
                     break
                     ;;
-                "继续")
+                "Next")
                     rm diskmap >/dev/null 2>&1 && echo
                     # 挂载分区
                     Mount_parts
                     break
                     ;;
-                "退出脚本")
-                    echo -e "\033[41;30m 退出脚本 \033[0m"
+                "Exit")
+                    echo -e "\033[41;30m Exit script \033[0m"
                     rm diskmap >/dev/null 2>&1 && echo
                     exit 1
                 break
                     ;;
                 *)
-                    echo -e "\033[43;37m 输入错误，请重新输入 \033[0m"
+                    echo -e "\033[43;37m Input errors, please re-enter \033[0m"
             esac
         done
 
@@ -609,7 +609,7 @@ Mkfs_disks(){
                     echo -e "\033[33m[OK]\033[0m mkfs.ext4 /dev/${name}"
                     mkfs.ext4 /dev/${name}
                 else
-                    echo "未格式化分区: /dev/${name}"
+                    echo "Unformatted partition: /dev/${name}"
                 fi
 
             elif ((${disk_count} == 2)) ; then
@@ -628,14 +628,14 @@ Mkfs_disks(){
                         echo -e "\033[33m[OK]\033[0m mkfs.ext4 /dev/${name}"
                         mkfs.ext4 /dev/${name}
                     else
-                        echo "未格式化分区: /dev/${name}"
+                        echo "Unformatted partition: /dev/${name}"
                     fi
                 else
                     echo -e "\033[33m[OK]\033[0m mkfs.ext4 /dev/${name}"
                     mkfs.ext4 /dev/${name}
                 fi
             else
-                echo -e "\033[43;37m 无法格式化不明分区 \033[0m"
+                echo -e "\033[43;37m Unable to format unknown partition \033[0m"
             fi
         done
         # 挂载分区
@@ -646,7 +646,7 @@ Mkfs_disks(){
 
 # 分区策略
 Disk_map(){
-    echo -e "\033[45;37m 当前磁盘分区情况 \033[0m"
+    echo -e "\033[45;37m Current disk partition situation \033[0m"
     lsblk -l
     # disk_names:所有磁盘和分区的名字<list>
     disk_names=`lsblk -nlo NAME`
@@ -655,7 +655,7 @@ Disk_map(){
     # disk_count:类型为 disk 的磁盘个数<int>
     disk_count=`lsblk -nlo TYPE | sed -n '/disk/=' | awk 'END{print NR}'`
     
-    echo -e "\n可用磁盘数量: ${disk_count}"
+    echo -e "\nn Number of available disks: ${disk_count}"
     for disk_line in ${disk_lines}
     do
         name=`lsblk -nlo NAME | sed -n ${disk_line}p`
@@ -666,7 +666,7 @@ Disk_map(){
     echo
     
     #生成策略
-    echo -e "\033[45;37m 生成分盘分区策略 \033[0m"
+    echo -e "\033[45;37m Generate partitioning strategy \033[0m"
     echo "NAME    SIZE    TYPE    MOUNTPOINT" > diskmap
     echo "NAME SIZE" > partmap
     for disk_line in ${disk_lines}
@@ -782,20 +782,20 @@ Disk_map(){
             fi
 
         else
-            echo -e "\033[43;37m 暂时没有适合您的分区策略 \033[0m"
+            echo -e "\033[43;37m There is no suitable partition strategy for you at the moment \033[0m"
         fi
     done
 }
 
 # 安装 linux 内核和 base
 Install_linux(){
-    echo -e "\033[45;37m 安装Linux-Kernel 和 base \033[0m"
+    echo -e "\033[45;37m Install Linux-Kernel and base \033[0m"
     pacstrap /mnt base
     pacstrap /mnt base-devel
     pacstrap /mnt linux linux-firmware
 
     echo 
-    echo -e "\033[45;37m 分区挂载情况写入到 fstab 中 \033[0m"
+    echo -e "\033[45;37m The partition mount status is written to fstab \033[0m"
     genfstab -U /mnt >> /mnt/etc/fstab
     cat /mnt/etc/fstab
     echo
@@ -803,22 +803,22 @@ Install_linux(){
 
 # 切换到安装的系统
 Arch_chroot(){
-    echo -e "\033[45;37m 切换系统 arch-chroot \033[0m"
+    echo -e "\033[45;37m Switching system arch-chroot \033[0m"
     arch-chroot /mnt
     echo
-    echo -e "\033[45;37m 设置时间 arch-chroot \033[0m"
+    echo -e "\033[45;37m Set time arch-chroot \033[0m"
     ln -sf /usr/share/zoneinfo/Asia/Shanghai /etc/localtime
     hwclock --systohc --utc
     echo
-    echo -e "\033[45;37m 修改编码格式 arch-chroot \033[0m"
+    echo -e "\033[45;37m Modify the encoding format arch-chroot \033[0m"
     Install_software ${system_os} vim
     echo "en_US.UTF-8 UTF-8" >> /etc/locale.gen
     echo "zh_CN.UTF-8 UTF-8" >> /etc/locale.gen
     locale-gen
     echo LANG=en_US.UTF-8 > /etc/locale.conf
     cat /etc/locale.conf && echo
-    echo -e "\033[45;37m 创建主机名 \033[0m"
-    read -e -p "请输入您的主机名（默认: Arch）:" host_name
+    echo -e "\033[45;37m Create hostname \033[0m"
+    read -e -p "Please enter your hostname（default: Arch）:" host_name
     [[ -z ${host_name} ]] && host_name="Arch"
     if [[ ${host_name} != "Arch" ]]; then
         echo ${host_name} > /etc/hostname
@@ -829,22 +829,22 @@ Arch_chroot(){
     echo "::1         localhost.localdomain   localhost"
     echo "127.0.1.1   ${host_name}.localdomain    ${host_name}"
     echo
-    echo -e "\033[45;37m 安装网络连接组件（推荐: WIFI） \033[0m"
-    select net in "无线WIFI" "网线DHCP" "其他ADSL"
+    echo -e "\033[45;37m Install network connection components (recommended: WIFI) \033[0m"
+    select net in "WIFI" "DHCP" "ADSL"
     do
         case ${net} in
-            "无线WIFI")
+            "WIFI")
                 Install_software ${system_os} iw wpa_supplicant dialog netctl dhcpcd
                 systemctl disable dhcpcd.service
                 break
                 ;;
-            "网线DHCP")
+            "DHCP")
                 Install_software ${system_os} dhcpcd
                 systemctl enable dhcpcd
                 systemctl start dhcpcd
                 break
                 ;;
-            "其他ADSL")
+            "ADSL")
                 Install_software ${system_os} rp-pppoe pppoe-setup
                 systemctl start adsl
                 break
@@ -855,16 +855,16 @@ Arch_chroot(){
         esac
     done
     echo 
-    echo -e "\033[45;37m 设置 ROOT 用户密码 \033[0m"
+    echo -e "\033[45;37m Set ROOT user password \033[0m"
     passwd
     echo 
-    echo -e "\033[45;37m 安装 Intel-ucode \033[0m"
+    echo -e "\033[45;37m Install Intel-ucode \033[0m"
     cat /proc/cpuinfo | grep "model name" >/dev/null 2>&1
     if (($? == 0)) ; then
         Install_software ${system_os} intel-ucode
     fi
     echo
-    echo -e "\033[45;37m 安装 Bootloader \033[0m"
+    echo -e "\033[45;37m Install bootloader \033[0m"
     # 删除多余引导菜单
     efiboot_menu=`efibootmgr | grep "ArchLinux" | cut -c 5-8`
     if [[ -z ${efiboot_menu} ]] ; then
@@ -877,7 +877,7 @@ Arch_chroot(){
         grub-mkconfig -o /boot/grub/grub.cfg
     else
         Install_software ${system_os} grub
-        read -e -p "请输入你的主磁盘名称，注意是磁盘，不是分区，用于安装 GRUB 引导（默认:sda）:" grub_install_path
+        read -e -p "Please enter the name of your primary disk, note that it is a disk, not a partition, used to install GRUB boot (default: sda):" grub_install_path
         [[ -z ${grub_install_path} ]] && grub_install_path="sda"
         if [[ ${grub_install_path} != "sda" ]]; then
             grub-install --target=i386-pc /dev/${grub_install_path}
@@ -889,14 +889,14 @@ Arch_chroot(){
     # 检查引导是否正常
     cat /boot/grub/grub.cfg | grep "Arch Linux" >/dev/null 2>&1
     if (( $? == 0)) ; then
-        echo "${grub} 引导设置成功"
+        echo "${grub} The boot setup is successful"
     else
-        echo "${grub} 引导设置失败"
+        echo "${grub} Boot setup failed"
     fi
     #多系统自动添加到引导目录
     Install_software ${system_os} os-prober
     echo
-    echo -e "\033[45;37m 重启系统 \033[0m"
+    echo -e "\033[45;37m Reboot the system \033[0m"
     exit
     umount -R /mnt
     reboot
@@ -905,12 +905,12 @@ Arch_chroot(){
 
 # 安装系统
 Install_system(){
-    echo -e "\033[45;37m 安装系统 \033[0m"
+    echo -e "\033[45;37m install the system \033[0m"
     
     # 确认引导方式
     ls /sys/firmware/efi/efivars >/dev/null 2>&1
     if test $? != 0 ;then
-        echo -e "\033[41;37m 不支持 UEFI 引导,已切换成 BIOS 方式 \033[0m"
+        echo -e "\033[41;37m Does not support UEFI boot, has been switched to BIOS mode \033[0m"
         ${grub}="BIOS"
     fi
 
@@ -929,10 +929,10 @@ Install_system(){
 
     # 开始分区
     Cfdiak_ALL
-    read -e -p "即将正式安装系统，过程全程联网，无法暂停，您准备好了吗？[yn]:" iyn
+    read -e -p "The system is about to be officially installed. The whole process is connected to the Internet and cannot be suspended. Are you ready? [yn][yn]:" iyn
     [[ -z ${iyn} ]] && iyn="n"
     if [[ ${iyn} == [Nn] ]] ; then
-        echo -e "\033[41;30m 退出脚本 \033[0m"
+        echo -e "\033[41;30m Exit script \033[0m"
         exit 1
     fi
     # 安装 Linux 系统 base | base-devel
@@ -944,35 +944,28 @@ Install_system(){
 }
 
 # 操作菜单
-echo -e "\033[45;37m请输入菜单编号 [1~n] \033[0m"
-select num in "制作启动盘" "安装系统" "安装NVIDIA驱动" "功能三" "更新脚本" "退出"
+echo -e "\033[45;37mPlease enter the menu number [1~n] \033[0m"
+select num in "Make a boot disk" "Install the system" "Install NVIDIA driver"  "Exit"
 do
         case ${num} in
-                "制作启动盘")
+                "Make a boot disk")
                     Download_iso
                     break
                     ;;
-                "安装系统")
+                "Install the system")
                     Install_system
                     #Mkfs_disks
                     break
                     ;;
-                "安装NVIDIA驱动")
-                        echo -e "\033[45;37m 功能二 \033[0m"
-                        echo "安装 QQ 音乐"
+                "Install NVIDIA driver")
+                        echo "Install QQ Music"
                         Install_software ${system_os} qqmusic-bin jstock
                         break
                         ;;
-                "功能三")
-                        echo -e "\033[45;37m 功能三 \033[0m"
-                        Test_function
-                        break
-                        ;;
-                "退出")
-                        echo -e "\033[41;30m 退出脚本 \033[0m"
+                "Exit")
                         break
                         ;;
                 *)
-                        echo -e "\033[43;37m 输入错误，请重新输入 \033[0m"
+                        echo -e "\033[43;37m Input errors, please re-enter \033[0m"
         esac
 done
