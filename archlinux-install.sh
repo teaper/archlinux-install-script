@@ -903,20 +903,20 @@ Arch_chroot(){
     echo
     echo -e "\033[45;37m Install Bootloader \033[0m"
     
-    # 删除多余引导菜单
-    efiboot_menu=`efibootmgr | grep "ArchLinux" | cut -c 5-8`
-    if [[ -z \${efiboot_menu} ]] ; then
-        efibootmgr -b \${efiboot_menu} -B
-    fi
 
     if [[ \${grub_new} == "UEFI" ]] ;then
         pacman -S grub efibootmgr
+        # 删除多余引导菜单
+        efiboot_menu=`efibootmgr | grep "ArchLinux" | cut -c 5-8`
+        if [[ -z \${efiboot_menu} ]] ; then
+            efibootmgr -b \${efiboot_menu} -B
+        fi
         grub-install --target=x86_64-efi --efi-directory=/boot/EFI --bootloader-id=ArchLinux
         grub-mkconfig -o /boot/grub/grub.cfg
     else
         pacman -S grub
         read -e -p "Please enter the name of your primary disk, note that it is a disk, not a partition, used to install GRUB boot (default: sda):" grub_install_path
-        [[ -z \${grub_install_path}]] && grub_install_path="sda"
+        [[ -z \${grub_install_path} ]] && grub_install_path="sda"
         if [[ \${grub_install_path} != "sda" ]]; then
             grub-install --target=i386-pc /dev/\${grub_install_path}
         else
