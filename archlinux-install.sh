@@ -279,7 +279,7 @@ Cfdisk_check(){
     # 判断分区个数
     if ((${part_count} != 4)) ; then
         echo -e "\033[31m Unreasonable number of partitions, go back and repartition \033[0m" 
-        Cfdiak_ALL
+        Cfdisk_ALL
         # 不进行自动挂载
     else
         # 检查分区情况和策略匹配程度
@@ -293,7 +293,7 @@ Cfdisk_check(){
             # 去掉存储单位后的数字<double>
             size_num=`echo ${size} | cut -d "T" -f 1 | cut -d "G" -f 1 | cut -d "M" -f  1`
             # 转化成 GB 之后的存储大小<double>
-            size_GB=${size_num}
+            size_GB=`echo | awk '{print '${size_num}'}'`
 
             # 单位转化成 GB
             if test ${size_bit} == "T" ; then
@@ -307,8 +307,16 @@ Cfdisk_check(){
             partmap_size=`cat partmap | grep ${name} | cut -d " " -f 2`
             partmap_size_num=`echo ${partmap_size} | cut -d "T" -f 1 | cut -d "G" -f 1 | cut -d "M" -f  1`
             partmap_size=`echo | awk '{print '${partmap_size_num}'}'`
+
+            # 分区结果比原来小一点，造成无法判断
             partmap_size_add1=`awk 'BEGIN{print '${partmap_size}'-1}'`
-            if ((${size_GB} >= ${partmap_size_add1})) && ((${size_GB} <= ${partmap_size})) ; then
+            
+            # 小数位无法 if 判断
+            size_GB_1=`awk 'BEGIN{print '${size_GB}'*10}'`
+            partmap_size_add1_1=`awk 'BEGIN{print '${partmap_size_add1}'*10}'`
+            partmap_size_1=`awk 'BEGIN{print '${partmap_size}'*10}'`
+
+            if ((${size_GB_1} >= ${partmap_size_add1_1})) && ((${size_GB_1} <= ${partmap_size_1})) ; then
                 echo -e "${name} \033[35m[OK]\033[0m SIZE: ${size_GB}G \033[31mMATCH\033[0m ${partmap_size}G"
             else
                 echo -e "${name} \033[31m[NO]\033[0m SIZE: ${size_GB}G \033[31mMISMATCH\033[0m ${partmap_size}G"
@@ -322,7 +330,7 @@ Cfdisk_check(){
             do
                 case ${num} in
                     "PREVIOUS")
-                        Cfdiak_ALL
+                        Cfdisk_ALL
                         break
                         ;;
                     "SKIP")
@@ -343,10 +351,11 @@ Cfdisk_check(){
         fi
         rm diskmap >/dev/null 2>&1 && echo
     fi
+    Mkfs_disks
 }
 
 # 开始分区
-Cfdiak_ALL(){
+Cfdisk_ALL(){
     echo -e "\033[45;37m READING PARTITION STRATEGY \033[0m"
     cat diskmap && echo
     echo -e "\033[43;37m Partition order \033[0m"
@@ -457,7 +466,7 @@ Mount_parts(){
         do
             case ${num} in
                 "PREVIOUS")
-                    Cfdiak_ALL
+                    Cfdisk_ALL
                     break
                     ;;
                 "MANUAL")
@@ -465,7 +474,7 @@ Mount_parts(){
                     rm partmap >/dev/null 2>&1 && echo
                     # 手动挂载
                     Cm_mount
-                    #Cm_disks
+                    Cm_disks
                     break
                     ;;
                 "SKIP")
@@ -501,16 +510,16 @@ Mount_parts(){
                 # 单个硬盘
                 if ((${name_end} == 1)) ; then
                     echo -e "\033[33m[OK]\033[0m mount /dev/${name} /mnt/boot/EFI"
-                    #mount /dev/${name} /mnt/boot/EFI
+                    mount /dev/${name} /mnt/boot/EFI
                 elif ((${name_end} == 2)) ; then
                     echo "No need to mount swap partition"
                 elif ((${name_end} == 3)) ; then
                     # 第三 home 分区
                     echo -e "\033[33m[OK]\033[0m mount /dev/${name} /mnt/home"
-                    #mount /dev/${name} /mnt/home
+                    mount /dev/${name} /mnt/home
                 elif ((${name_end} == 4)) ; then
                     echo -e "\033[33m[OK]\033[0m mount /dev/${name} /mnt"
-                    #mount /dev/${name} /mnt
+                    mount /dev/${name} /mnt
                 else
                     echo "Unmounted partition:/dev/${name}"
                 fi
@@ -520,19 +529,19 @@ Mount_parts(){
                 if [[ ${name_top} == "nvm" ]] ; then
                     if ((${name_end} == 1)) ; then
                         echo -e "\033[33m[OK]\033[0m mount /dev/${name} /mnt/boot/EFI"
-                        #mount /dev/${name} /mnt/boot/EFI
+                        mount /dev/${name} /mnt/boot/EFI
                     elif ((${name_end} == 2)) ; then
                         echo "No need to mount swap partition"
                     elif ((${name_end} == 3)) ; then
                         # 第三个根分区
                         echo -e "\033[33m[OK]\033[0m mount /dev/${name} /mnt"
-                        #mount /dev/${name} /mnt
+                        mount /dev/${name} /mnt
                     else
                         echo "Unmounted partition: /dev/${name}"
                     fi
                 else
                     echo -e "\033[33m[OK]\033[0m mount /dev/${name} /mnt/home"
-                    #mount /dev/${name} /mnt/home
+                    mount /dev/${name} /mnt/home
                 fi
             else
                 echo -e "\033[43;37m Unable to mount unknown partition \033[0m"
@@ -554,7 +563,7 @@ Mkfs_disks(){
         do
             case ${num} in
                 "PREVIOUS")
-                    Cfdiak_ALL
+                    Cfdisk_ALL
                     break
                     ;;
                 "MANUAL")
@@ -598,19 +607,19 @@ Mkfs_disks(){
                 # 单个硬盘
                 if ((${name_end} == 1)) ; then
                     echo -e "\033[33m[OK]\033[0m mkfs.vfat /dev/${name}"
-                    #mkfs.vfat /dev/${name}
+                    mkfs.vfat /dev/${name}
                 elif ((${name_end} == 2)) ; then
                     echo -e "\033[33m[OK]\033[0m mkswap -f /dev/${name}"
-                    #mkswap -f /dev/${name}
+                    mkswap -f /dev/${name}
                     echo -e "\033[33m[OK]\033[0m swapon /dev/${name}"
-                    #swapon /dev/${name}
+                    swapon /dev/${name}
                 elif ((${name_end} == 3)) ; then
                     # 第三 home 分区
                     echo -e "\033[33m[OK]\033[0m mkfs.ext4 /dev/${name}"
-                    #mkfs.ext4 /dev/${name}
+                    mkfs.ext4 /dev/${name}
                 elif ((${name_end} == 4)) ; then
                     echo -e "\033[33m[OK]\033[0m mkfs.ext4 /dev/${name}"
-                    #mkfs.ext4 /dev/${name}
+                    mkfs.ext4 /dev/${name}
                 else
                     echo "Unformatted partition: /dev/${name}"
                 fi
@@ -620,22 +629,22 @@ Mkfs_disks(){
                 if [[ ${name_top} == "nvm" ]] ; then
                     if ((${name_end} == 1)) ; then
                         echo -e "\033[33m[OK]\033[0m mkfs.vfat /dev/${name}"
-                        #mkfs.vfat /dev/${name}
+                        mkfs.vfat /dev/${name}
                     elif ((${name_end} == 2)) ; then
                         echo -e "\033[33m[OK]\033[0m mkswap -f /dev/${name}"
-                        #mkswap -f /dev/${name}
+                        mkswap -f /dev/${name}
                         echo -e "\033[33m[OK]\033[0m swapon /dev/${name}"
-                        #swapon /dev/${name}
+                        swapon /dev/${name}
                     elif ((${name_end} == 3)) ; then
                         # 第三个根分区
                         echo -e "\033[33m[OK]\033[0m mkfs.ext4 /dev/${name}"
-                        #mkfs.ext4 /dev/${name}
+                        mkfs.ext4 /dev/${name}
                     else
                         echo "Unformatted partition: /dev/${name}"
                     fi
                 else
                     echo -e "\033[33m[OK]\033[0m mkfs.ext4 /dev/${name}"
-                    #mkfs.ext4 /dev/${name}
+                    mkfs.ext4 /dev/${name}
                 fi
             else
                 echo -e "\033[43;37m Unable to format unknown partition \033[0m"
@@ -682,7 +691,7 @@ Disk_map(){
         # 去掉存储单位后的数字<double>
         size_num=`echo ${size} | cut -d "T" -f 1 | cut -d "G" -f 1 | cut -d "M" -f  1`
         # 转化成 GB 之后的存储大小<double>
-        size_GB=${size_num}
+        size_GB=`echo | awk '{print '${size_num}'}'`
 
         # 单位转化成 GB
         if test ${size_bit} == "T" ; then
@@ -820,14 +829,26 @@ Install_linux(){
 # 切换到安装的系统
 Arch_chroot(){
     echo -e "\033[45;37m SWITCHING SYSTEM ARCH-CHROOT \033[0m"
-    arch-chroot /mnt /bin/bash <<EOF
-    echo
+    read -e -p "The archlinux-install.sh script has been created under /mnt, please run the 'bash archlinux-install'  command after 'arch-chroot' to continue the installation！[yn]:" chroot_yn
+    [[ -z ${chroot_yn} ]] && iyn="y"
+    if [[ ${chroot_yn} == [Nn] ]] ; then
+        echo -e "\033[41;30m Exit script \033[0m"
+        exit 1
+    fi
+    # 先把后面需要的命令放在文件中，arch-choot 之后继续运行脚本
+    # 复制软件源文件
+    cp /etc/pacman.d/mirrorlist* /mnt/etc/pacman.d
+    
+    echo "#/bin/bash" > /mnt/archlinux-install.sh
+    cat >> /mnt/arch-install.sh <<EOF
+    # 保存变量值
+    grub_new=${grub}
     echo -e "\033[45;37m Set time \033[0m"
     ln -sf /usr/share/zoneinfo/Asia/Shanghai /etc/localtime
     hwclock --systohc --utc
     echo
     echo -e "\033[45;37m Modify the encoding format \033[0m"
-    Install_software ${system_os} vim
+    pacman -S vim
     echo "en_US.UTF-8 UTF-8" >> /etc/locale.gen
     echo "zh_CN.UTF-8 UTF-8" >> /etc/locale.gen
     locale-gen
@@ -835,38 +856,38 @@ Arch_chroot(){
     cat /etc/locale.conf && echo
     echo -e "\033[45;37m Create hostname \033[0m"
     read -e -p "Please enter your hostname（default: Arch）:" host_name
-    [[ -z ${host_name} ]] && host_name="Arch"
-    if [[ ${host_name} != "Arch" ]]; then
-        echo ${host_name} > /etc/hostname
+    [[ -z \${host_name} ]] && host_name="Arch"
+    if [[ \${host_name} != "Arch" ]] ; then
+        echo \${host_name} > /etc/hostname
     else
         echo Arch > /etc/hostname
     fi
     echo "127.0.0.1   localhost.localdomain   localhost"
     echo "::1         localhost.localdomain   localhost"
-    echo "127.0.1.1   ${host_name}.localdomain    ${host_name}"
+    echo "127.0.1.1   \${host_name}.localdomain    \${host_name}"
     echo
     echo -e "\033[45;37m Install network connection components（recommended: WIFI） \033[0m"
     select net in "WIFI" "DHCP" "ADSL"
     do
-        case ${net} in
+        case \${net} in
             "WIFI")
-                Install_software ${system_os} iw wpa_supplicant dialog netctl dhcpcd
+                pacman -S iw wpa_supplicant dialog netctl dhcpcd
                 systemctl disable dhcpcd.service
                 break
                 ;;
             "DHCP")
-                Install_software ${system_os} dhcpcd
+                pacman -S} dhcpcd
                 systemctl enable dhcpcd
                 systemctl start dhcpcd
                 break
                 ;;
             "ADSL")
-                Install_software ${system_os} rp-pppoe pppoe-setup
+                pacman -S rp-pppoe pppoe-setup
                 systemctl start adsl
                 break
                 ;;
             *)
-                Install_software ${system_os} iw wpa_supplicant dialog netctl dhcpcd
+                pacman -S iw wpa_supplicant dialog netctl dhcpcd
                 systemctl disable dhcpcd.service
         esac
     done
@@ -876,27 +897,28 @@ Arch_chroot(){
     echo 
     echo -e "\033[45;37m Install Intel-ucode \033[0m"
     cat /proc/cpuinfo | grep "model name" >/dev/null 2>&1
-    if (($? == 0)) ; then
-        Install_software ${system_os} intel-ucode
+    if ((\$? == 0)) ; then
+        pacman -S intel-ucode
     fi
     echo
     echo -e "\033[45;37m Install Bootloader \033[0m"
+    
     # 删除多余引导菜单
     efiboot_menu=`efibootmgr | grep "ArchLinux" | cut -c 5-8`
-    if [[ -z ${efiboot_menu} ]] ; then
-        efibootmgr -b ${efiboot_menu} -B
+    if [[ -z \${efiboot_menu} ]] ; then
+        efibootmgr -b \${efiboot_menu} -B
     fi
 
-    if [[ ${grub} == "UEFI" ]] ;then
-        Install_software ${system_os} grub efibootmgr
+    if [[ \${grub_new} == "UEFI" ]] ;then
+        pacman -S grub efibootmgr
         grub-install --target=x86_64-efi --efi-directory=/boot/EFI --bootloader-id=ArchLinux
         grub-mkconfig -o /boot/grub/grub.cfg
     else
-        Install_software ${system_os} grub
+        pacman -S grub
         read -e -p "Please enter the name of your primary disk, note that it is a disk, not a partition, used to install GRUB boot (default: sda):" grub_install_path
-        [[ -z ${grub_install_path}]] && grub_install_path="sda"
-        if [[ ${grub_install_path} != "sda" ]]; then
-            grub-install --target=i386-pc /dev/${grub_install_path}
+        [[ -z \${grub_install_path}]] && grub_install_path="sda"
+        if [[ \${grub_install_path} != "sda" ]]; then
+            grub-install --target=i386-pc /dev/\${grub_install_path}
         else
             grub-install --target=i386-pc /dev/sda
         fi
@@ -904,19 +926,23 @@ Arch_chroot(){
     fi
     # 检查引导是否正常
     cat /boot/grub/grub.cfg | grep "Arch Linux" >/dev/null 2>&1
-    if (( $? == 0)) ; then
-        echo "${grub} The boot setup is successful"
+    if (( \$? == 0)) ; then
+        echo "\${grub_new} The boot setup is successful"
     else
-        echo "${grub} Boot setup failed"
+        echo "\${grub_new} Boot setup failed"
     fi
     #多系统自动添加到引导目录
-    Install_software ${system_os} os-prober
+    pacman -S os-prober
+    
+    # 退出 /mnt 下的系统
+    exit
 EOF
+   arch-chroot /mnt
     echo
     echo -e "\033[45;37m Reboot the system \033[0m"
     umount -R /mnt
     echo "Done! Unmount the CD image from the VM, then type 'reboot'."
-
+    #reboot
 }
 
 # 安装系统
@@ -944,7 +970,7 @@ Install_system(){
     Disk_map
 
     # 开始分区
-    Cfdiak_ALL
+    Cfdisk_ALL
     read -e -p "The system is about to be officially installed. The whole process is connected to the Internet and cannot be suspended. Are you ready?[yn]:" iyn
     [[ -z ${iyn} ]] && iyn="y"
     if [[ ${iyn} == [Nn] ]] ; then
