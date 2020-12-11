@@ -46,13 +46,13 @@ Install_software(){
                     fi
                     ;;
                 arch|manjaro)
-                    pacman -Ss ${f}
+                    pacman -S ${f}
                     if [ $? -ne 0 ]; then
                         echo -e "\033[33m Use pacman to install ${f} failed, try to install with yay \033[0m"
                         # yay_var 记录下原本安装的软件
                         yay_var=${f}
                         Install_software $1 yay
-                        yay -Ss ${yay_var}
+                        yay -S ${yay_var}
                     fi
                     ;;
                 *)
@@ -792,21 +792,10 @@ Disk_map(){
 # 安装 linux 内核和 base
 Install_linux(){
     echo -e "\033[45;37m INSTALL LINUX-KERNEL AND BASH \033[0m"
-    while true
-    do
-        pacstrap /mnt base
-        if (($? != 0)) ;then
-            # 未挂载
-            Mount_parts
-        else
-            break
-        fi
-    done
+    
+    pacstrap /mnt base
     pacstrap /mnt base-devel
     pacstrap /mnt linux linux-firmware
-
-    # 复制软件源到新系统
-    cp /etc/pacman.d/mirrorlist* /mnt/etc/pacman.d
 
     echo 
     echo -e "\033[45;37m The partition mount status is written to fstab \033[0m"
