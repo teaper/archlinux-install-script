@@ -307,10 +307,11 @@ Cfdisk_check(){
             partmap_size=`cat partmap | grep ${name} | cut -d " " -f 2`
             partmap_size_num=`echo ${partmap_size} | cut -d "T" -f 1 | cut -d "G" -f 1 | cut -d "M" -f  1`
             partmap_size=`echo | awk '{print '${partmap_size_num}'}'`
-            if [[ "${size_GB}" == "${partmap_size}" ]] ; then
-                echo -e "${name} \033[35m[OK]\033[0m SIZE: ${size_GB}G \033[31m=\033[0m ${partmap_size}G"
+            partmap_size_add1=`awk 'BEGIN{print '${partmap_size}'-1}'`
+            if ((${size_GB} >= ${partmap_size_add1})) && ((${size_GB} <= ${partmap_size})) ; then
+                echo -e "${name} \033[35m[OK]\033[0m SIZE: ${size_GB}G \033[31mMATCH\033[0m ${partmap_size}G"
             else
-                echo -e "${name} \033[31m[NO]\033[0m SIZE: ${size_GB}G \033[31m!=\033[0m ${partmap_size}G"
+                echo -e "${name} \033[31m[NO]\033[0m SIZE: ${size_GB}G \033[31mMISMATCH\033[0m ${partmap_size}G"
                 NO=`awk 'BEGIN{print '${NO}'+1}'`
             fi
         done
@@ -412,9 +413,9 @@ Cm_mount(){
     lsblk -nlo NAME,SIZE,TYPE,MOUNTPOINT | grep part
     echo -e "\033[33m \nTip: Some commands are as follows: \033[0m"
     echo -e "\033[36m [MOUNT] mount /dev/</ PARTITION> /mnt \033[0m"
-    echo -e "\033[36m [CREATE] mkdir /mnt/home \033[0m"
-    echo -e "\033[36m [CREATE] mkdir -p /mnt/boot/EFI \033[0m"
-    echo -e "\033[32m [MOUNT] mount /dev/<HOME PARTITION> /mnt/home \033[0m"
+    echo -e "\033[32m [CREATE] mkdir /mnt/home \033[0m"
+    echo -e "\033[32m [CREATE] mkdir -p /mnt/boot/EFI \033[0m"
+    echo -e "\033[36m [MOUNT] mount /dev/<HOME PARTITION> /mnt/home \033[0m"
     echo -e "\033[36m [MOUNT] mount /dev/<EFI PARTITION> /mnt/boot/EFI \033[0m"
     echo -e "\033[33m \n(Tip: Type q and press Enter to end the command input)  \033[0m"
     
@@ -699,7 +700,11 @@ Disk_map(){
             if [[ ${name} == "nvme0n1" ]] ; then
                 # EFI 分区大小
                 efi_size=`echo ${size_GB} | cut -d "." -f 2`
-                efi_size=`awk 'BEGIN{printf "%.1f\n",'${efi_size}'/10}'`
+                if ((${efi_size} <= 10)) ; then
+                    efi_size=`awk 'BEGIN{printf "%.1f\n",'${efi_size}'/10}'`
+                else
+                    efi_size=1
+                fi
                 sed -i "/${name}/a├─${name}p1    ${efi_size}G   EFI System     /boot/EFI" diskmap
                 echo "${name}p1 ${efi_size}G" >> partmap
                 # swap 分区大小
@@ -727,7 +732,11 @@ Disk_map(){
             else
                 # EFI 分区大小
                 efi_size=`echo ${size_GB} | cut -d "." -f 2`
-                efi_size=`awk 'BEGIN{printf "%.1f\n",'${efi_size}'/10}'`
+                if ((${efi_size} <= 10)) ; then
+                    efi_size=`awk 'BEGIN{printf "%.1f\n",'${efi_size}'/10}'`
+                else
+                    efi_size=1
+                fi
                 sed -i "/${name}/a├─${name}1    ${efi_size}G   EFI Filesystem     /boot/EFI" diskmap
                 echo "${name}1 ${efi_size}G" >> partmap
                 # swap 分区大小
@@ -759,7 +768,11 @@ Disk_map(){
             if [[ ${name} == "nvme0n1" ]] ; then
                 # EFI 分区大小
                 efi_size=`echo ${size_GB} | cut -d "." -f 2`
-                efi_size=`awk 'BEGIN{printf "%.1f\n",'${efi_size}'/10}'`
+                if ((${efi_size} <= 10)) ; then
+                    efi_size=`awk 'BEGIN{printf "%.1f\n",'${efi_size}'/10}'`
+                else
+                    efi_size=1
+                fi
                 sed -i "/${name}/a├─${name}p1    ${efi_size}G   EFI Filesystem     /boot/EFI" diskmap
                 echo "${name}p1 ${efi_size}G" >> partmap
                 # swap 分区大小
