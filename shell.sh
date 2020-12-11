@@ -359,7 +359,7 @@ Cfdiak_ALL(){
         for disk_line in ${disk_lines}
         do
             var=`lsblk -nlo NAME | sed -n ${disk_line}p`
-            #cfdisk /dev/${var}
+            cfdisk /dev/${var}
         done
         # 分区完成查看一眼睛
         echo "Partition successful" && echo
@@ -700,7 +700,7 @@ Disk_map(){
                 # EFI 分区大小
                 efi_size=`echo ${size_GB} | cut -d "." -f 2`
                 efi_size=`awk 'BEGIN{printf "%.1f\n",'${efi_size}'/10}'`
-                sed -i "/${name}/a├─${name}p1    ${efi_size}G   EFI Filesystem     /boot/EFI" diskmap
+                sed -i "/${name}/a├─${name}p1    ${efi_size}G   EFI System     /boot/EFI" diskmap
                 echo "${name}p1 ${efi_size}G" >> partmap
                 # swap 分区大小
                 if ((${memory} <= 4)); then
@@ -925,7 +925,7 @@ Install_system(){
     ls /sys/firmware/efi/efivars >/dev/null 2>&1
     if test $? != 0 ;then
         echo -e "\033[41;37m Does not support UEFI boot, has been switched to BIOS mode \033[0m"
-        ${grub}="BIOS"
+        grub="BIOS"
     fi
 
     # 更新系统时间
@@ -937,7 +937,7 @@ Install_system(){
         sed -i '1iServer = http://mirrors.aliyun.com/archlinux/$repo/os/$arch' /etc/pacman.d/mirrorlist
         sed -i '1iServer = https://mirrors.ustc.edu.cn/archlinux/$repo/os/$arch' /etc/pacman.d/mirrorlist
     fi
-
+    pacman -Syy
     # 分区策略
     Disk_map
 
