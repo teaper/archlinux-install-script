@@ -146,7 +146,7 @@ System_check(){
     # 检查网络
     Network_check
     if [ $? -eq 0 ];then
-        echo
+        echo ""
         echo -e "\033[31m The network is not smooth, please check the network settings \033[0m"
         Network_link
         exit 1
@@ -323,7 +323,7 @@ Cfdisk_check(){
                 NO=`awk 'BEGIN{print '${NO}'+1}'`
             fi
         done
-        echo
+        echo ""
         if ((${NO} != 0)) ; then
             echo -e "\033[33mWarning: You have ${NO} partitions unreasonable (recommendation: repartition)\033[0m"
             select num in "PREVIOUS" "SKIP" "EXIT"
@@ -364,7 +364,7 @@ Cfdisk_ALL(){
     read -e -p "During the partitioning process, the partitioning strategy cannot be viewed. It is recommended to take a picture and record before continuing [y/n]:" cfdisk_yn
     [[ -z ${cfdisk_yn} ]] && cfdisk_yn="y"
     if [[ ${cfdisk_yn} == [Yy] ]]; then
-        echo
+        echo ""
         echo -e "\033[45;37m Start partition \033[0m"
         for disk_line in ${disk_lines}
         do
@@ -374,11 +374,11 @@ Cfdisk_ALL(){
         # 分区完成查看一眼睛
         echo "Partition successful" && echo
         echo -e "\033[43;37m View partition results \033[0m"
-        lsblk && echo
-        echo
+        lsblk
+        echo ""
     else
         echo -e "\033[43;37m Unpartitioned \033[0m"
-        echo
+        echo ""
     fi
 
     # 检查分区是否合理
@@ -413,7 +413,7 @@ Cm_disks(){
     echo -e "\n\033[33m[Operation log]\033[0m"
     cat cmd.log >/dev/null 2>&1 
     rm cmd.log >/dev/null 2>&1 
-    echo 
+    echo ""
 }
 
 # 手动挂载
@@ -445,18 +445,21 @@ Cm_mount(){
     echo -e "\n\033[33m[Operation log]\033[0m"
     cat cmd.log >/dev/null 2>&1 
     rm cmd.log >/dev/null 2>&1 
-    echo 
+    echo ""
 }
 
 # 挂载分区
 Mount_parts(){
-    echo
+    echo""
     echo -e "\033[45;37m MOUNT PARTITION \033[0m"
-    if [ ! -d "/mnt/home" ]; then
+    if [[ ! -d "/mnt/home" ]] ; then
         mkdir /mnt/home
+        echo -e "\033[33m mkdir /mnt/home \033[0m"
    fi
-   if [ ! -d "/mnt/boot/EFI" ]; then
-        mkdir -p /mnt/boot/EFI
+   if [[ ! -d "/mnt/boot/EFI" ]] ; then
+        mkdir /mnt/boot
+        mkdir /mnt/boot/EFI
+        echo -e "\033[33m mkdir -p /mnt/boot/EFI \033[0m"
    fi
     
     if ((${NO} != 0)) ; then
@@ -472,9 +475,10 @@ Mount_parts(){
                 "MANUAL")
                     rm diskmap >/dev/null 2>&1 && echo
                     rm partmap >/dev/null 2>&1 && echo
+                    # 先格式化
+                    Cm_disks
                     # 手动挂载
                     Cm_mount
-                    Cm_disks
                     break
                     ;;
                 "SKIP")
@@ -505,7 +509,7 @@ Mount_parts(){
             name_top=`echo ${name} | cut -b 1-3`
             name_end=${name: -1}
 
-            # 格式化
+            # 挂载
             if ((${disk_count} == 1)) ; then
                 # 单个硬盘
                 if ((${name_end} == 1)) ; then
@@ -548,13 +552,13 @@ Mount_parts(){
             fi
         done
     fi
-    rm diskmap >/dev/null 2>&1 && echo
-    rm partmap >/dev/null 2>&1 && echo
+    rm diskmap >/dev/null 2>&1
+    rm partmap >/dev/null 2>&1
 }
 
 # 格式化分区
 Mkfs_disks(){
-    echo
+    echo ""
     echo -e "\033[45;37m FORMAT PARTITION \033[0m"
     if ((${NO} != 0)) ; then
         #手动格式化分区
@@ -567,7 +571,7 @@ Mkfs_disks(){
                     break
                     ;;
                 "MANUAL")
-                    rm diskmap >/dev/null 2>&1 && echo
+                    rm diskmap >/dev/null 2>&1
                     # 手动格式化
                     Cm_disks
                     # 挂载分区
@@ -575,14 +579,14 @@ Mkfs_disks(){
                     break
                     ;;
                 "SKIP")
-                    rm diskmap >/dev/null 2>&1 && echo
+                    rm diskmap >/dev/null 2>&1
                     # 挂载分区
                     Mount_parts
                     break
                     ;;
                 "EXIT")
                     echo -e "\033[41;30m Exit script \033[0m"
-                    rm diskmap >/dev/null 2>&1 && echo
+                    rm diskmap >/dev/null 2>&1 
                     exit 1
                 break
                     ;;
@@ -650,9 +654,9 @@ Mkfs_disks(){
                 echo -e "\033[43;37m Unable to format unknown partition \033[0m"
             fi
         done
-        # 挂载分区
-        Mount_parts
     fi
+    #挂载分区
+    Mount_parts
 }
 
 
@@ -675,7 +679,7 @@ Disk_map(){
 
         echo "PATH: /dev/${name}  SIZE: ${size}"
     done
-    echo
+    echo ""
     
     #生成策略
     echo -e "\033[45;37m GENERATE PARTITIONING STRATEGY \033[0m"
@@ -746,7 +750,7 @@ Disk_map(){
                 else
                     efi_size=1
                 fi
-                sed -i "/${name}/a├─${name}1    ${efi_size}G   EFI Filesystem     /boot/EFI" diskmap
+                sed -i "/${name}/a├─${name}1    ${efi_size}G   EFI System     /boot/EFI" diskmap
                 echo "${name}1 ${efi_size}G" >> partmap
                 # swap 分区大小
                 if ((${memory} <= 4)); then
@@ -782,7 +786,7 @@ Disk_map(){
                 else
                     efi_size=1
                 fi
-                sed -i "/${name}/a├─${name}p1    ${efi_size}G   EFI Filesystem     /boot/EFI" diskmap
+                sed -i "/${name}/a├─${name}p1    ${efi_size}G   EFI System     /boot/EFI" diskmap
                 echo "${name}p1 ${efi_size}G" >> partmap
                 # swap 分区大小
                 if ((${memory} <= 4)); then
@@ -813,23 +817,22 @@ Disk_map(){
 
 # 安装 linux 内核和 base
 Install_linux(){
+    lsblk -l
     echo -e "\033[45;37m INSTALL LINUX-KERNEL AND BASH \033[0m"
-    
     pacstrap /mnt base
     pacstrap /mnt base-devel
     pacstrap /mnt linux linux-firmware
-
-    echo 
+    echo ""
     echo -e "\033[45;37m The partition mount status is written to fstab \033[0m"
     genfstab -U /mnt >> /mnt/etc/fstab
     cat /mnt/etc/fstab
-    echo
+    echo ""
 }
 
 # 切换到安装的系统
 Arch_chroot(){
     echo -e "\033[45;37m SWITCHING SYSTEM ARCH-CHROOT \033[0m"
-    read -e -p "The archlinux-install.sh script has been created under /mnt, please run the 'bash archlinux-install'  command after 'arch-chroot' to continue the installation！[yn]:" chroot_yn
+    read -e -p "The archlinux-install.sh script has been created under /mnt, please run the 'bash archlinux-install.sh'  command after 'arch-chroot' to continue the installation！[yn]:" chroot_yn
     [[ -z ${chroot_yn} ]] && iyn="y"
     if [[ ${chroot_yn} == [Nn] ]] ; then
         echo -e "\033[41;30m Exit script \033[0m"
@@ -840,20 +843,21 @@ Arch_chroot(){
     cp /etc/pacman.d/mirrorlist* /mnt/etc/pacman.d
     
     echo "#/bin/bash" > /mnt/archlinux-install.sh
-    cat >> /mnt/arch-install.sh <<EOF
+    cat >> /mnt/archlinux-install.sh <<EOF
     # 保存变量值
     grub_new=${grub}
     echo -e "\033[45;37m Set time \033[0m"
     ln -sf /usr/share/zoneinfo/Asia/Shanghai /etc/localtime
     hwclock --systohc --utc
-    echo
+    echo ""
     echo -e "\033[45;37m Modify the encoding format \033[0m"
     pacman -S vim
     echo "en_US.UTF-8 UTF-8" >> /etc/locale.gen
     echo "zh_CN.UTF-8 UTF-8" >> /etc/locale.gen
     locale-gen
     echo LANG=en_US.UTF-8 > /etc/locale.conf
-    cat /etc/locale.conf && echo
+    cat /etc/locale.conf
+    echo ""
     echo -e "\033[45;37m Create hostname \033[0m"
     read -e -p "Please enter your hostname（default: Arch）:" host_name
     [[ -z \${host_name} ]] && host_name="Arch"
@@ -865,7 +869,7 @@ Arch_chroot(){
     echo "127.0.0.1   localhost.localdomain   localhost"
     echo "::1         localhost.localdomain   localhost"
     echo "127.0.1.1   \${host_name}.localdomain    \${host_name}"
-    echo
+    echo ""
     echo -e "\033[45;37m Install network connection components（recommended: WIFI） \033[0m"
     select net in "WIFI" "DHCP" "ADSL"
     do
@@ -876,7 +880,7 @@ Arch_chroot(){
                 break
                 ;;
             "DHCP")
-                pacman -S} dhcpcd
+                pacman -S dhcpcd
                 systemctl enable dhcpcd
                 systemctl start dhcpcd
                 break
@@ -891,30 +895,30 @@ Arch_chroot(){
                 systemctl disable dhcpcd.service
         esac
     done
-    echo 
+    echo ""
     echo -e "\033[45;37m Set ROOT user password \033[0m"
     passwd
-    echo 
+    echo ""
     echo -e "\033[45;37m Install Intel-ucode \033[0m"
     cat /proc/cpuinfo | grep "model name" >/dev/null 2>&1
     if ((\$? == 0)) ; then
         pacman -S intel-ucode
     fi
-    echo
+    echo ""
     echo -e "\033[45;37m Install Bootloader \033[0m"
     
 
     if [[ \${grub_new} == "UEFI" ]] ;then
+        echo -e "\033[33m Set up UEFI boot \033[0m"
         pacman -S grub efibootmgr
-        # 删除多余引导菜单
-        efiboot_menu=`efibootmgr | grep "ArchLinux" | cut -c 5-8`
-        if [[ -z \${efiboot_menu} ]] ; then
-            efibootmgr -b \${efiboot_menu} -B
-        fi
         grub-install --target=x86_64-efi --efi-directory=/boot/EFI --bootloader-id=ArchLinux
         grub-mkconfig -o /boot/grub/grub.cfg
     else
+        echo -e "\033[33m Set up BIOS boot \033[0m"
         pacman -S grub
+        echo -e "\033[43;37m List optional disks \033[0m"
+        lsblk -l | grep "disk"
+        echo ""
         read -e -p "Please enter the name of your primary disk, note that it is a disk, not a partition, used to install GRUB boot (default: sda):" grub_install_path
         [[ -z \${grub_install_path} ]] && grub_install_path="sda"
         if [[ \${grub_install_path} != "sda" ]]; then
@@ -933,15 +937,14 @@ Arch_chroot(){
     fi
     #多系统自动添加到引导目录
     pacman -S os-prober
-    
-    # 退出 /mnt 下的系统
-    exit
+    echo -e "Type \033[31m'exit'\033[0m to exit chroot mode."
 EOF
-   arch-chroot /mnt
-    echo
+    arch-chroot /mnt
+    # 退出 /mnt 中的系统
+    echo ""
     echo -e "\033[45;37m Reboot the system \033[0m"
     umount -R /mnt
-    echo "Done! Unmount the CD image from the VM, then type 'reboot'."
+    echo -e "Done! Unmount the CD image from the VM, then type \033[31m'reboot'\033[0m."
     #reboot
 }
 
