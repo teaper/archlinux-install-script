@@ -5,7 +5,8 @@ export PATH
 
 # 安装 lolcat
 Install_lolcat(){
-    wget https://github.com/busyloop/lolcat/archive/master.zip
+    curl -LJO https://github.com/busyloop/lolcat/archive/master.zip
+    Ipp ${system_os} unzip
     unzip master.zip
     cd locat-master/bin
     gem install lolcat
@@ -14,7 +15,7 @@ Install_lolcat(){
 }
 
 # 安装软件函数，两个参数，$1 系统，$2 要安装的软件名字
-Install_software(){
+Ipp(){
     for f in "$@"
     do 
         if test ${f} == $1
@@ -22,7 +23,6 @@ Install_software(){
             continue 
         fi 
         if ! type ${f} > /dev/null 2>&1; then
-            echo -e "\033[41;30m ${f} Not Installed \033[0m"
             case $1 in
                 debian|ubuntu|devuan|deepin)
                     if test ${f} == "lolcat"
@@ -30,7 +30,7 @@ Install_software(){
                         apt autoremove libevent-core libevent-pthreads libopts25 sntp
                         Install_lolcat
                     else
-                        apt-get install ${f}
+                        apt-get install ${f} >> log 2>&1
                     fi
                     ;;
                 centos|fedora|rhel)
@@ -42,17 +42,20 @@ Install_software(){
                     then
                         Install_lolcat
                     else
-                        ${yumdnf} install ${f}
+                        ${yumdnf} install ${f} >> log 2>&1
                     fi
                     ;;
                 arch|manjaro)
-                    pacman -S ${f}
+                    pacman_Qs=`pacman -Qs ${f}`
+                    if ! [[ -z ${pacman_Qs} ]] ; then
+                        continue
+                    fi
+                    pacman -S ${f} >> log 2>&1
                     if [ $? -ne 0 ]; then
-                        echo -e "\033[33m Use pacman to install ${f} failed, try to install with yay \033[0m"
                         # yay_var 记录下原本安装的软件
                         yay_var=${f}
-                        Install_software $1 yay
-                        yay -S ${yay_var}
+                        Ipp $1 yay
+                        yay -S ${yay_var} >> log 2>&1
                     fi
                     ;;
                 *)
@@ -60,8 +63,6 @@ Install_software(){
                     exit 1
                 ;;
             esac
-        else
-            echo -e "\033[45;37m[OK]\033[0m ${f} is installed"
         fi
     done
 }
@@ -153,13 +154,21 @@ System_check(){
     fi
 
     # 安装终端彩虹屁
-    #Install_software $ID ruby lolcat
+    Ipp $ID ruby lolcat
 
 }
 
 # 脚本标题图案
 System_check 
-echo -e "\033[5m"
+
+# 定义全局变量
+sh_ver=`date -d "$(date +%y%m)01 last month" +%Y.%m.01`
+system_os="$ID"
+# 镜像大小（MB）
+iso_size=682
+# 引导方式
+grub=UEFI
+
 echo -e "\033[33m 
     ___              __    __    _                     ____           __        ____
    /   |  __________/ /_  / /   (_)___  __  ___  __   /  _/___  _____/ /_____ _/ / /
@@ -167,25 +176,15 @@ echo -e "\033[33m
  / ___ |/ /  / /__/ / / / /___/ / / / / /_/ />  <   _/ // / / (__  ) /_/ /_/ / / /  
 /_/  |_/_/   \___/_/ /_/_____/_/_/ /_/\__,_/_/|_|  /___/_/ /_/____/\__/\__,_/_/_/   
                                                                                     
-\033[0m"
+=================================== Quick Start ====================================
+||     OS: Arch Linux x86_64                                                      ||
+||     Description: ArchLinux system installation script                          ||
+||     Version:${sh_ver}                                                         ||
+||     Author: teaper                                                             ||
+||     Home：https://github.com/teaper/archlinux-install-script                   ||
+====================================================================================
+\033[0m" | lolcat
 # TITLE 生成: http://patorjk.com/software/taag/#p=display&f=Slant&t=teaper
-
-# 定义全局变量
-sh_ver="2020.12.01"
-system_os="$ID"
-# 镜像大小（MB）
-iso_size=682
-# 引导方式
-grub=UEFI
-
-# 脚本描述
-echo -e "========================\033[43;37m Quick Start \033[0m=========================="
-echo "*     OS: Arch Linux ${bit}"
-echo "*     Description: ArchLinux system installation script"
-echo -e "*     Version:${sh_ver}"
-echo "*     Author: teaper"
-echo "*     Home：https://teaper.dev"
-echo "==============================================================="
 
 # 函数
 Test_function(){
@@ -455,12 +454,18 @@ Mount_parts(){
     if [[ ! -d "/mnt/home" ]] ; then
         mkdir /mnt/home
         echo -e "\033[33m mkdir /mnt/home \033[0m"
-   fi
-   if [[ ! -d "/mnt/boot/EFI" ]] ; then
-        mkdir /mnt/boot
-        mkdir /mnt/boot/EFI
-        echo -e "\033[33m mkdir -p /mnt/boot/EFI \033[0m"
-   fi
+    fi
+    # 不要问我为啥创建个文件夹还要用循环，问就是 BIOS 引导的虚拟机中死活没创建
+    while true
+    do
+        if [[ ! -d "/mnt/boot/EFI" ]] ; then
+            mkdir /mnt/boot
+            mkdir /mnt/boot/EFI
+        else
+            echo -e "\033[33m mkdir -p /mnt/boot/EFI \033[0m"
+            break
+        fi
+    done
     
     if ((${NO} != 0)) ; then
         #手动挂载分区
@@ -944,9 +949,11 @@ Arch_chroot(){
     #多系统自动添加到引导目录
     pacman -S os-prober
     echo -e "Type \033[31m'exit'\033[0m to exit chroot mode."
+    # 退出后删除该文件
 EOF
     arch-chroot /mnt
     # 退出 /mnt 中的系统
+    cp archlinux-install.sh /mnt/archlinux-install.sh
     echo ""
     echo -e "\033[45;37m Reboot the system \033[0m"
     umount -R /mnt
@@ -993,10 +1000,166 @@ Install_system(){
 }
 # 安装系统[end]-------------------------------------------------------------------------------------------
 
+# 安装驱动
+Install_drives(){
+    # 安装声卡驱动
+    echo
+    echo -e "\033[45;37m INSTALL ALSA-UTILS \033[0m"
+    Ipp ${system_os} alsa-utils
+    read -e -p "Whether to set the volume immediately" alsa_yn
+    [[ -z ${alsa_yn} ]] && alsa_yn="n"
+    if [[ ${alsa_yn} == [Yy] ]] ; then
+        alsamixer
+    fi
+
+    # 安装显卡驱动
+    echo
+    echo -e "\033[45;37m INSTALL GRAPHICS DRIVER \033[0m"
+    pci_intel=`lspci -k | grep -A 2 -E "(VGA|3D)" | awk '/Intel/{print NR}'`
+    pci_amd=`lspci -k | grep -A 2 -E "(VGA|3D)" | awk '/AMD/{print NR}'`
+    pci_nvidia=`lspci -k | grep -A 2 -E "(VGA|3D)" | awk '/NVIDIA/{print NR}'`
+    if ! [[ -z ${pci_intel} ]] ; then
+        Ipp ${system_os} xf86-video-intel
+        echo "Intel graphics driver installed"
+    fi
+    if ! [[ -z ${pci_amd} ]] ; then
+        Ipp ${system_os} xf86-video-amdgpu
+        echo "AMD graphics driver installed"
+    fi
+    if ! [[ -z ${pci_nvidia} ]] ; then
+        Ipp ${system_os} nvidia
+        echo "NVIDIA graphics driver installed"
+    fi
+
+    # 安装触摸板驱动
+    Ipp ${system_os} xf86-input-synaptics
+
+}
+
+# 安装字体
+Install_ttf(){
+    echo
+    echo -e "\033[45;37m INSTALL FONTS \033[0m"
+    echo -e "The operating system recommends using \033[36mWQY\033[0m fonts[1,n-1]"
+    select ttf_num in "WQY" "DEJAVU" "JETBRAINS" "SKIP"
+    do
+        case ${ttf_num} in
+                "WQY")
+                    Ipp ${system_os} wqy-zenhei wqy-microhei
+                    continue
+                    ;;
+                "DEJAVU")
+                    Ipp ${system_os} ttf-dejavu
+                    #Install_system
+                    continue
+                    ;;
+                "JETBRAINS")
+                    Ipp ${system_os} ttf-jetbrains-mono
+                    continue
+                    ;;
+                "SKIP")
+                    break
+                    ;;
+                *)
+                    echo -e "\033[43;37m Input error, unknown option \033[0m"
+        esac
+    done
+}
+
+# 安装桌面[start]***************************************
+Install_desktop(){
+    # 添加用户
+    echo
+    echo -e "\033[45;37m ADD USER \033[0m"
+    while true
+    do
+        read -e -p "Create an individual user, please enter the user name:" username
+        if [[ ${username} != "" ]] ;then
+            useradd -m -g users -s /bin/bash ${username}
+            passwd ${username}
+            # 配置 /etc/sudoers 文件
+            i=cat /etc/sudoers | awk '/root ALL=\(ALL\) ALL/{print NR}'
+            sed -i ''${i}'a'${username}' ALL=(ALL) ALL' /etc/sudoers
+            break
+        else
+            read -e -p "Are you sure not to add users? [y/n]" add_user_yn
+            [[ -z ${add_user_yn} ]] && add_user_yn="y"
+            if [[ ${add_user_yn} == [yn] ]] ; then
+                break
+            fi
+        fi
+    done
+    
+    # 安装驱动
+    Install_drives
+
+    # 开启 bbr 加速
+    echo
+    echo -e "\033[45;37m OPEN BBR \033[0m"
+    bbr_info=`modinfo tcp_bbr | grep "tcp_bbr"`
+    if ! [[ -z ${bbr_info} ]] ; then
+        control=`sysctl net.ipv4.tcp_congestion_control | cut -d "=" -f 2`
+        if [[ ${control} != "bbr" ]] ; then
+            echo -e "Currently using \033[31m${control}\033[0m acceleration."
+            modprobe tcp_bbr
+            control_bbr=`sysctl net.ipv4.tcp_congestion_control | cut -d "=" -f 2`
+            echo -e "Change \033[31${control}\033[0m acceleration to \033[36m${control_bbr}\033[0m acceleration"
+            sudo sysctl net.ipv4.tcp_congestion_control=bbr
+            echo "tcp_bbr" > /etc/modules-load.d/80-bbr.conf
+            echo "net.ipv4.tcp_congestion_control=bbr" > /etc/sysctl.d/80-bbr.conf
+            echo "net.core.default_qdisc=fq" >> /etc/sysctl.d/80-bbr.conf
+        else
+            echo -e "Currently using \033[31m${control_bbr}\033[0m acceleration."
+        fi
+    fi
+
+    # 安装 x 服务
+    Ipp ${system_os} xorg
+    
+    # 安装字体
+    Install_ttf
+
+    # 安装桌面
+    echo -e "\033[45;37m INSTALL DESKTOP AND DISPLAY MANAGER \033[0m"
+    echo -e "Choose your desktop program and display manager. [1~n]"
+    select desk in "GNOME+GDM" "KDE+SDDM" "DDE" "DWM-SDDM" "SKIP"
+    do
+        case ${desk} in
+                "GNOME+GDM")
+                    echo "正在安装gnome"
+                    Ipp ${system_os} gnome gnome-tweak-tool alacarte
+                    systemctl enable gdm
+                    break
+                    ;;
+                "KDE+SDDM")
+                    echo "正在安装 Kde"
+                    break
+                    ;;
+                "DDE")
+                    echo "正在安装 dde"
+                    break
+                    ;;
+                "DWM-SDDM")
+                    echo -e "\033[45;37m 功能开发中 \033[0m"
+                    break
+                    ;;
+                "SKIP")
+                    break
+                    ;;
+                *)
+                    echo -e "\033[43;37m Input error, re-select your desktop manager \033[0m"
+        esac
+    done
+    # 启用网络管理
+    systemctl enable NetworkManager
+
+}
+
+# 安装桌面[end]********************************************
 
 # 操作菜单
 echo -e "Please enter the menu number. [1~n]"
-select num in "制作启动盘" "INSTALL-SYSTEM" "安装NVIDIA驱动" "功能三" "更新脚本" "退出"
+select num in "制作启动盘" "INSTALL-SYSTEM" "INSTALL-DESKTOP" "安装NVIDIA驱动" "功能三" "更新脚本" "退出"
 do
         case ${num} in
                 "制作启动盘")
@@ -1004,25 +1167,34 @@ do
                     break
                     ;;
                 "INSTALL-SYSTEM")
-                    Install_system
+                    #Install_system
+                    break
+                    ;;
+                "INSTALL-DESKTOP")
+                    Install_desktop
                     break
                     ;;
                 "安装NVIDIA驱动")
-                        echo -e "\033[45;37m 功能二 \033[0m"
-                        echo "安装 QQ 音乐"
-                        Install_software ${system_os} qqmusic-bin jstock
-                        break
-                        ;;
+                    echo -e "\033[45;37m 功能二 \033[0m"
+                    echo "安装 QQ 音乐"
+                    Ipp ${system_os} qqmusic-bin jstock
+                    break
+                    ;;
                 "功能三")
-                        echo -e "\033[45;37m 功能三 \033[0m"
-                        Test_function
-                        break
-                        ;;
+                    echo -e "\033[45;37m 功能三 \033[0m"
+                    Test_function
+                    break
+                    ;;
                 "退出")
-                        echo -e "\033[41;30m 退出脚本 \033[0m"
-                        break
-                        ;;
+                    echo -e "\033[41;30m 退出脚本 \033[0m"
+                    break
+                    ;;
                 *)
-                        echo -e "\033[43;37m 输入错误，请重新输入 \033[0m"
+                    echo -e "\033[43;37m 输入错误，请重新输入 \033[0m"
         esac
 done
+# 统计日志
+echo -e "\n-----------------------ERROR LOG-------------------------"
+cat log >/dev/null 2>&1
+rm log >/dev/null 2>&1
+echo "---------------------------------------------------------"
