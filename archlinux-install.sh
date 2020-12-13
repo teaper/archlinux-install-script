@@ -911,6 +911,12 @@ Arch_chroot(){
     if [[ \${grub_new} == "UEFI" ]] ;then
         echo -e "\033[33m Set up UEFI boot \033[0m"
         pacman -S grub efibootmgr
+        # 删除多余引导菜单
+        efiboot_menu=`efibootmgr | grep "ArchLinux" | cut -c 5-8`
+        if [[ -z \${efiboot_menu} ]] ; then
+            echo -e "\033[31m The old boot menu has been deleted \033[0m"
+            efibootmgr -b \${efiboot_menu} -B
+        fi
         grub-install --target=x86_64-efi --efi-directory=/boot/EFI --bootloader-id=ArchLinux
         grub-mkconfig -o /boot/grub/grub.cfg
     else
@@ -948,7 +954,7 @@ EOF
     #reboot
 }
 
-# 安装系统
+# 安装系统[start]----------------------------------------------------------------------------------------
 Install_system(){
     echo -e "\033[45;37m INSTALL THE SYSTEM \033[0m"
     
@@ -982,24 +988,23 @@ Install_system(){
     fi
     # 安装 Linux 系统 base | base-devel
     Install_linux
-
     # 切换到安装的系统
     Arch_chroot
-
 }
+# 安装系统[end]-------------------------------------------------------------------------------------------
+
 
 # 操作菜单
 echo -e "Please enter the menu number. [1~n]"
-select num in "制作启动盘" "Install System" "安装NVIDIA驱动" "功能三" "更新脚本" "退出"
+select num in "制作启动盘" "INSTALL-SYSTEM" "安装NVIDIA驱动" "功能三" "更新脚本" "退出"
 do
         case ${num} in
                 "制作启动盘")
                     Download_iso
                     break
                     ;;
-                "Install System")
+                "INSTALL-SYSTEM")
                     Install_system
-                    #Mkfs_disks
                     break
                     ;;
                 "安装NVIDIA驱动")
