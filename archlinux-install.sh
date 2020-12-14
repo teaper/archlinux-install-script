@@ -5,8 +5,7 @@ export PATH
 
 # 安装 lolcat
 Install_lolcat(){
-    curl -LJO https://github.com/busyloop/lolcat/archive/master.zip
-    Ipp ${system_os} unzip
+    wget https://github.com/busyloop/lolcat/archive/master.zip
     unzip master.zip
     cd locat-master/bin
     gem install lolcat
@@ -30,7 +29,7 @@ Ipp(){
                         apt autoremove libevent-core libevent-pthreads libopts25 sntp
                         Install_lolcat
                     else
-                        apt-get install ${f} >> log 2>&1
+                        apt-get install ${f}
                     fi
                     ;;
                 centos|fedora|rhel)
@@ -42,20 +41,19 @@ Ipp(){
                     then
                         Install_lolcat
                     else
-                        ${yumdnf} install ${f} >> log 2>&1
+                        ${yumdnf} install ${f}
                     fi
                     ;;
                 arch|manjaro)
-                    pacman_Qs=`pacman -Qs ${f}`
-                    if ! [[ -z ${pacman_Qs} ]] ; then
-                        continue
-                    fi
-                    pacman -S ${f} >> log 2>&1
-                    if [ $? -ne 0 ]; then
-                        # yay_var 记录下原本安装的软件
-                        yay_var=${f}
-                        Ipp $1 yay
-                        yay -S ${yay_var} >> log 2>&1
+                    Qs=`pacman -Qs ${f}`
+                    if [[ ${Qs} == "" ]] ; then
+                        pacman -S ${f}
+                        if [ $? -ne 0 ]; then
+                            # yay_var 记录下原本安装的软件
+                            yay_var=${f}
+                            Ipp $1 yay
+                            yay -S ${yay_var}
+                        fi
                     fi
                     ;;
                 *)
@@ -131,8 +129,7 @@ System_check(){
 
     # 检查系统类型
     echo -e "\033[45;37m CHECK THE SYSTEM \033[0m"
-    source /etc/os-release
-    echo "System: $ID"
+    echo "System: ${os}"
     
     # 检查 x86_64 架构
     bit=`uname -m`
@@ -154,20 +151,23 @@ System_check(){
     fi
 
     # 安装终端彩虹屁
-    Ipp $ID ruby lolcat
-
+    archiso=`lsblk -nlo MOUNTPOINT | sed -n '/archiso/='`
+    if [[ ${archiso} == "" ]] ; then
+    	Ipp $ID ruby lolcat
+    fi
 }
-
-# 脚本标题图案
-System_check 
 
 # 定义全局变量
 sh_ver=`date -d "$(date +%y%m)01 last month" +%Y.%m.01`
-system_os="$ID"
+source /etc/os-release
+os="$ID"
 # 镜像大小（MB）
 iso_size=682
 # 引导方式
 grub=UEFI
+
+# 脚本标题图案
+System_check 
 
 echo -e "\033[33m 
     ___              __    __    _                     ____           __        ____
@@ -322,6 +322,8 @@ Cfdisk_check(){
                 NO=`awk 'BEGIN{print '${NO}'+1}'`
             fi
         done
+         #格式化分区
+         Mkfs_disks
         echo ""
         if ((${NO} != 0)) ; then
             echo -e "\033[33mWarning: You have ${NO} partitions unreasonable (recommendation: repartition)\033[0m"
@@ -350,7 +352,6 @@ Cfdisk_check(){
         fi
         rm diskmap >/dev/null 2>&1 && echo
     fi
-    Mkfs_disks
 }
 
 # 开始分区
@@ -451,22 +452,6 @@ Cm_mount(){
 Mount_parts(){
     echo""
     echo -e "\033[45;37m MOUNT PARTITION \033[0m"
-    if [[ ! -d "/mnt/home" ]] ; then
-        mkdir /mnt/home
-        echo -e "\033[33m mkdir /mnt/home \033[0m"
-    fi
-    # 不要问我为啥创建个文件夹还要用循环，问就是 BIOS 引导的虚拟机中死活没创建
-    while true
-    do
-        if [[ ! -d "/mnt/boot/EFI" ]] ; then
-            mkdir /mnt/boot
-            mkdir /mnt/boot/EFI
-        else
-            echo -e "\033[33m mkdir -p /mnt/boot/EFI \033[0m"
-            break
-        fi
-    done
-    
     if ((${NO} != 0)) ; then
         #手动挂载分区
         echo -e "\033[33mWarning: You have ${NO} partitions unreasonable (recommendation: mount manually)\033[0m"
@@ -506,7 +491,7 @@ Mount_parts(){
     else
         # 自动挂载分区
         #part_lines:所有类型为 part 的分区行号<list>
-        part_lines=`lsblk -nlo TYPE | sed -n '/part/='`
+        part_lines=`lsblk -nlo TYPE | sed -n '/part/=' | sort -r`
 
         for part_line in ${part_lines}
         do
@@ -519,12 +504,21 @@ Mount_parts(){
                 # 单个硬盘
                 if ((${name_end} == 1)) ; then
                     echo -e "\033[33m[OK]\033[0m mount /dev/${name} /mnt/boot/EFI"
+                    if [[ ! -d "/mnt/boot/EFI" ]] ; then
+                        mkdir /mnt/boot
+                        mkdir /mnt/boot/EFI
+                        echo -e "\033[33m mkdir -p /mnt/boot/EFI \033[0m"
+                    fi
                     mount /dev/${name} /mnt/boot/EFI
                 elif ((${name_end} == 2)) ; then
                     echo "No need to mount swap partition"
                 elif ((${name_end} == 3)) ; then
                     # 第三 home 分区
                     echo -e "\033[33m[OK]\033[0m mount /dev/${name} /mnt/home"
+                    if [[ ! -d "/mnt/home" ]] ; then
+                        mkdir /mnt/home
+                        echo -e "\033[33m mkdir /mnt/home \033[0m"
+                    fi
                     mount /dev/${name} /mnt/home
                 elif ((${name_end} == 4)) ; then
                     echo -e "\033[33m[OK]\033[0m mount /dev/${name} /mnt"
@@ -538,6 +532,11 @@ Mount_parts(){
                 if [[ ${name_top} == "nvm" ]] ; then
                     if ((${name_end} == 1)) ; then
                         echo -e "\033[33m[OK]\033[0m mount /dev/${name} /mnt/boot/EFI"
+                        if [[ ! -d "/mnt/boot/EFI" ]] ; then
+                            mkdir /mnt/boot
+                            mkdir /mnt/boot/EFI
+                            echo -e "\033[33m mkdir -p /mnt/boot/EFI \033[0m"
+                        fi
                         mount /dev/${name} /mnt/boot/EFI
                     elif ((${name_end} == 2)) ; then
                         echo "No need to mount swap partition"
@@ -550,6 +549,10 @@ Mount_parts(){
                     fi
                 else
                     echo -e "\033[33m[OK]\033[0m mount /dev/${name} /mnt/home"
+                    if [[ ! -d "/mnt/home" ]] ; then
+                        mkdir /mnt/home
+                        echo -e "\033[33m mkdir /mnt/home \033[0m"
+                    fi
                     mount /dev/${name} /mnt/home
                 fi
             else
@@ -659,9 +662,9 @@ Mkfs_disks(){
                 echo -e "\033[43;37m Unable to format unknown partition \033[0m"
             fi
         done
+        #挂载分区
+        Mount_parts
     fi
-    #挂载分区
-    Mount_parts
 }
 
 
@@ -838,7 +841,7 @@ Install_linux(){
 Arch_chroot(){
     echo -e "\033[45;37m SWITCHING SYSTEM ARCH-CHROOT \033[0m"
     read -e -p "The archlinux-install.sh script has been created under /mnt, please run the 'bash archlinux-install.sh'  command after 'arch-chroot' to continue the installation！[yn]:" chroot_yn
-    [[ -z ${chroot_yn} ]] && iyn="y"
+    [[ -z ${chroot_yn} ]] && chroot_yn="y"
     if [[ ${chroot_yn} == [Nn] ]] ; then
         echo -e "\033[41;30m Exit script \033[0m"
         exit 1
@@ -1005,7 +1008,7 @@ Install_drives(){
     # 安装声卡驱动
     echo
     echo -e "\033[45;37m INSTALL ALSA-UTILS \033[0m"
-    Ipp ${system_os} alsa-utils
+    Ipp ${os} alsa-utils
     read -e -p "Whether to set the volume immediately" alsa_yn
     [[ -z ${alsa_yn} ]] && alsa_yn="n"
     if [[ ${alsa_yn} == [Yy] ]] ; then
@@ -1019,20 +1022,20 @@ Install_drives(){
     pci_amd=`lspci -k | grep -A 2 -E "(VGA|3D)" | awk '/AMD/{print NR}'`
     pci_nvidia=`lspci -k | grep -A 2 -E "(VGA|3D)" | awk '/NVIDIA/{print NR}'`
     if ! [[ -z ${pci_intel} ]] ; then
-        Ipp ${system_os} xf86-video-intel
+        Ipp ${os} xf86-video-intel
         echo "Intel graphics driver installed"
     fi
     if ! [[ -z ${pci_amd} ]] ; then
-        Ipp ${system_os} xf86-video-amdgpu
+        Ipp ${os} xf86-video-amdgpu
         echo "AMD graphics driver installed"
     fi
     if ! [[ -z ${pci_nvidia} ]] ; then
-        Ipp ${system_os} nvidia
+        Ipp ${os} nvidia
         echo "NVIDIA graphics driver installed"
     fi
 
     # 安装触摸板驱动
-    Ipp ${system_os} xf86-input-synaptics
+    Ipp ${os} xf86-input-synaptics
 
 }
 
@@ -1045,16 +1048,16 @@ Install_ttf(){
     do
         case ${ttf_num} in
                 "WQY")
-                    Ipp ${system_os} wqy-zenhei wqy-microhei
+                    Ipp ${os} wqy-zenhei wqy-microhei
                     continue
                     ;;
                 "DEJAVU")
-                    Ipp ${system_os} ttf-dejavu
+                    Ipp ${os} ttf-dejavu
                     #Install_system
                     continue
                     ;;
                 "JETBRAINS")
-                    Ipp ${system_os} ttf-jetbrains-mono
+                    Ipp ${os} ttf-jetbrains-mono
                     continue
                     ;;
                 "SKIP")
@@ -1083,8 +1086,8 @@ Install_desktop(){
             break
         else
             read -e -p "Are you sure not to add users? [y/n]" add_user_yn
-            [[ -z ${add_user_yn} ]] && add_user_yn="y"
-            if [[ ${add_user_yn} == [yn] ]] ; then
+            [[ -z ${add_user_yn} ]] && add_user_yn="n"
+            if [[ ${add_user_yn} == [Yy] ]] ; then
                 break
             fi
         fi
@@ -1114,7 +1117,7 @@ Install_desktop(){
     fi
 
     # 安装 x 服务
-    Ipp ${system_os} xorg
+    Ipp ${os} xorg
     
     # 安装字体
     Install_ttf
@@ -1126,21 +1129,31 @@ Install_desktop(){
     do
         case ${desk} in
                 "GNOME+GDM")
-                    echo "正在安装gnome"
-                    Ipp ${system_os} gnome gnome-tweak-tool alacarte
+                    echo "\033[45;37mWelcome to GNOME desktop\033"
+                    Ipp ${os} gnome gnome-tweak-tool alacarte
                     systemctl enable gdm
                     break
                     ;;
                 "KDE+SDDM")
-                    echo "正在安装 Kde"
+                    echo "\033[45;37mWelcome to KDE desktop\033"
+                    Ipp ${os} plasma-meta konsole dolphin
+                    systemctl enable sddm
                     break
                     ;;
                 "DDE")
-                    echo "正在安装 dde"
+                    echo "\033[45;37mWelcome to DDE desktop\033"
+                    Ipp ${os} deepin deepin-extra
+                    
+                    #先修改lightdm配置文件
+                    nmb=`cat < /etc/lightdm/lightdm.conf | sed -n '/greeter-session/='`
+                    sed -i ''${nmb}'agreeter-session=lightdm-deepin-greeter' /etc/lightdm/lightdm.conf
+                    sed -i '${nmb}d' /etc/lightdm/lightdm.conf
+
+                    systemctl enable lightdm
                     break
                     ;;
                 "DWM-SDDM")
-                    echo -e "\033[45;37m 功能开发中 \033[0m"
+                    echo "\033[45;37mWelcome to DWM desktop\033"
                     break
                     ;;
                 "SKIP")
@@ -1151,7 +1164,16 @@ Install_desktop(){
         esac
     done
     # 启用网络管理
+    Ipp ${os} networkmanager 
     systemctl enable NetworkManager
+    
+    read -e -p "After the desktop installation is complete, whether to type 'reboot' immediately to restart, you can continue to use 'bash /archlinux-install.sh' to run this script later！[yn]:" redesk_yn
+    [[ -z ${redesk_yn} ]] && redesk_yn="y"
+    if [[ ${redesk_yn} == [Yy] ]] ; then
+        echo -e "\033[41;30m REBOOT \033[0m"
+        reboot
+    fi
+
 
 }
 
@@ -1159,7 +1181,7 @@ Install_desktop(){
 
 # 操作菜单
 echo -e "Please enter the menu number. [1~n]"
-select num in "制作启动盘" "INSTALL-SYSTEM" "INSTALL-DESKTOP" "安装NVIDIA驱动" "功能三" "更新脚本" "退出"
+select num in "制作启动盘" "INSTALL-SYSTEM" "INSTALL-DESKTOP" "安装软件" "功能三" "更新脚本" "退出"
 do
         case ${num} in
                 "制作启动盘")
@@ -1167,17 +1189,17 @@ do
                     break
                     ;;
                 "INSTALL-SYSTEM")
-                    #Install_system
+                    Install_system
                     break
                     ;;
                 "INSTALL-DESKTOP")
                     Install_desktop
                     break
                     ;;
-                "安装NVIDIA驱动")
+                "安装软件")
                     echo -e "\033[45;37m 功能二 \033[0m"
                     echo "安装 QQ 音乐"
-                    Ipp ${system_os} qqmusic-bin jstock
+                    Ipp ${os} qqmusic-bin jstock
                     break
                     ;;
                 "功能三")
@@ -1193,8 +1215,4 @@ do
                     echo -e "\033[43;37m 输入错误，请重新输入 \033[0m"
         esac
 done
-# 统计日志
-echo -e "\n-----------------------ERROR LOG-------------------------"
-cat log >/dev/null 2>&1
-rm log >/dev/null 2>&1
-echo "---------------------------------------------------------"
+
