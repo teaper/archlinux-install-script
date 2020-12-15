@@ -153,7 +153,7 @@ System_check(){
     # 安装终端彩虹屁
     archiso=`lsblk -nlo MOUNTPOINT | sed -n '/archiso/='`
     if [[ ${archiso} == "" ]] ; then
-    	Ipp $ID ruby lolcat
+        Ipp $ID ruby lolcat
     fi
 }
 
@@ -255,7 +255,7 @@ Download_iso(){
             Dd_iso
         fi
     else 
-        read -e -p "当前文件夹下没有 archlinux-${sh_ver}-${bit}.iso 镜像，是否立即下载[y/n]:" iso_yn
+        read -e -p "当前文件夹下没有 archlinux-${sh_ver}-${bit}.iso 镜像，是否立即下载「y/n」" iso_yn
         [[ -z ${iso_yn} ]] && iso_yn="y"
         if [[ ${iso_yn} == [Yy] ]]; then
             echo "\n正在下载 iso 镜像文件"
@@ -274,12 +274,18 @@ Cfdisk_check(){
     part_lines=`lsblk -nlo TYPE |  sed -n  '/part/='`
     part_count=`lsblk -nlo TYPE | sed -n '/part/=' | awk 'END{print NR}'`
     NO=0
+    
+    # 判断镜像U盘是否存在，删除 U 盘分区行号
+    live_cd_part_lines=`lsblk -nlo NAME | sed -n '/sdb[1-9]/='`
+    if [[ ${live_cd_part_lines} != "" ]] ; then
+        part_lines=`echo ${part_lines/${live_cd_part_lines}/}`
+    fi
 
     # 判断分区个数
-    if ((${part_count} != 4)) ; then
+    if ((${part_count} < 4)) ; then
         echo -e "\033[31m Unreasonable number of partitions, go back and repartition \033[0m" 
+        # 分区小于 4 个强制重新分区
         Cfdisk_ALL
-        # 不进行自动挂载
     else
         # 检查分区情况和策略匹配程度
         echo -e "Number of available disks: ${part_count}"
@@ -322,9 +328,7 @@ Cfdisk_check(){
                 NO=`awk 'BEGIN{print '${NO}'+1}'`
             fi
         done
-         #格式化分区
-         Mkfs_disks
-        echo ""
+        
         if ((${NO} != 0)) ; then
             echo -e "\033[33mWarning: You have ${NO} partitions unreasonable (recommendation: repartition)\033[0m"
             select num in "PREVIOUS" "SKIP" "EXIT"
@@ -335,8 +339,6 @@ Cfdisk_check(){
                         break
                         ;;
                     "SKIP")
-                        # 格式化分区
-                        Mkfs_disks
                         break
                         ;;
                     "EXIT")
@@ -351,7 +353,10 @@ Cfdisk_check(){
             done
         fi
         rm diskmap >/dev/null 2>&1 && echo
+        
     fi
+    # 格式化分区
+     Mkfs_disks
 }
 
 # 开始分区
@@ -361,7 +366,7 @@ Cfdisk_ALL(){
     echo -e "\033[43;37m Partition order \033[0m"
     echo "Single disk:   EFI > SWAP > HOME > /"
     echo "Dual disk:   EFI > SWAP > / > HOME"
-    read -e -p "During the partitioning process, the partitioning strategy cannot be viewed. It is recommended to take a picture and record before continuing [y/n]:" cfdisk_yn
+    read -e -p "During the partitioning process, the partitioning strategy cannot be viewed. It is recommended to take a picture and record before continuing 「y/n」" cfdisk_yn
     [[ -z ${cfdisk_yn} ]] && cfdisk_yn="y"
     if [[ ${cfdisk_yn} == [Yy] ]]; then
         echo ""
@@ -465,8 +470,6 @@ Mount_parts(){
                 "MANUAL")
                     rm diskmap >/dev/null 2>&1 && echo
                     rm partmap >/dev/null 2>&1 && echo
-                    # 先格式化
-                    Cm_disks
                     # 手动挂载
                     Cm_mount
                     break
@@ -492,6 +495,12 @@ Mount_parts(){
         # 自动挂载分区
         #part_lines:所有类型为 part 的分区行号<list>
         part_lines=`lsblk -nlo TYPE | sed -n '/part/=' | sort -r`
+    
+        # 判断镜像U盘是否存在，删除 U 盘分区行号
+        live_cd_part_lines=`lsblk -nlo NAME | sed -n '/sdb[1-9]/=' | sort -r`
+        if [[ ${live_cd_part_lines} != "" ]] ; then
+            part_lines=`echo ${part_lines/${live_cd_part_lines}/}`
+        fi
 
         for part_line in ${part_lines}
         do
@@ -505,8 +514,7 @@ Mount_parts(){
                 if ((${name_end} == 1)) ; then
                     echo -e "\033[33m[OK]\033[0m mount /dev/${name} /mnt/boot/EFI"
                     if [[ ! -d "/mnt/boot/EFI" ]] ; then
-                        mkdir /mnt/boot
-                        mkdir /mnt/boot/EFI
+                        mkdir -p /mnt/boot/EFI
                         echo -e "\033[33m mkdir -p /mnt/boot/EFI \033[0m"
                     fi
                     mount /dev/${name} /mnt/boot/EFI
@@ -533,8 +541,7 @@ Mount_parts(){
                     if ((${name_end} == 1)) ; then
                         echo -e "\033[33m[OK]\033[0m mount /dev/${name} /mnt/boot/EFI"
                         if [[ ! -d "/mnt/boot/EFI" ]] ; then
-                            mkdir /mnt/boot
-                            mkdir /mnt/boot/EFI
+                            mkdir -p /mnt/boot/EFI
                             echo -e "\033[33m mkdir -p /mnt/boot/EFI \033[0m"
                         fi
                         mount /dev/${name} /mnt/boot/EFI
@@ -582,8 +589,6 @@ Mkfs_disks(){
                     rm diskmap >/dev/null 2>&1
                     # 手动格式化
                     Cm_disks
-                    # 挂载分区
-                    Mount_parts
                     break
                     ;;
                 "SKIP")
@@ -607,6 +612,12 @@ Mkfs_disks(){
         # 自动格式化分区
         #part_lines:所有类型为 part 的分区行号<list>
         part_lines=`lsblk -nlo TYPE | sed -n '/part/='`
+        
+        # 判断镜像U盘是否存在，删除 U 盘分区行号
+        live_cd_part_lines=`lsblk -nlo NAME | sed -n '/sdb[1-9]/='`
+        if [[ ${live_cd_part_lines} != "" ]] ; then
+            part_lines=`echo ${part_lines/${live_cd_part_lines}/}`
+        fi
 
         for part_line in ${part_lines}
         do
@@ -662,9 +673,9 @@ Mkfs_disks(){
                 echo -e "\033[43;37m Unable to format unknown partition \033[0m"
             fi
         done
-        #挂载分区
-        Mount_parts
     fi
+    #挂载分区
+    Mount_parts
 }
 
 
@@ -678,7 +689,7 @@ Disk_map(){
     disk_lines=`lsblk -nlo TYPE |  sed -n  '/disk/='`
     # disk_count:类型为 disk 的磁盘个数<int>
     disk_count=`lsblk -nlo TYPE | sed -n '/disk/=' | awk 'END{print NR}'`
-    
+
     echo -e "\nNumber of available disks: ${disk_count}"
     for disk_line in ${disk_lines}
     do
@@ -688,6 +699,14 @@ Disk_map(){
         echo "PATH: /dev/${name}  SIZE: ${size}"
     done
     echo ""
+    
+    # 判断镜像U盘是否存在，删除 U 盘行号
+    live_cd_disk_line=`lsblk -nlo TYPE,MOUNTPOINT | sed -n '/part \/run\/archiso/='`
+    if [[ ${live_cd_disk_line} != "" ]] ; then
+        let disk_count=$disk_count-1
+        let live_cd_disk_line=$live_cd_disk_line-1
+        disk_lines=`echo ${disk_lines/${live_cd_disk_line}/}`
+    fi
     
     #生成策略
     echo -e "\033[45;37m GENERATE PARTITIONING STRATEGY \033[0m"
@@ -840,7 +859,7 @@ Install_linux(){
 # 切换到安装的系统
 Arch_chroot(){
     echo -e "\033[45;37m SWITCHING SYSTEM ARCH-CHROOT \033[0m"
-    read -e -p "The archlinux-install.sh script has been created under /mnt, please run the 'bash archlinux-install.sh'  command after 'arch-chroot' to continue the installation！[yn]:" chroot_yn
+    read -e -p "The archlinux-install.sh script has been created under /mnt, please run the 'bash archlinux-install.sh'  command after 'arch-chroot' to continue the installation！「y/n」" chroot_yn
     [[ -z ${chroot_yn} ]] && chroot_yn="y"
     if [[ ${chroot_yn} == [Nn] ]] ; then
         echo -e "\033[41;30m Exit script \033[0m"
@@ -990,7 +1009,7 @@ Install_system(){
 
     # 开始分区
     Cfdisk_ALL
-    read -e -p "The system is about to be officially installed. The whole process is connected to the Internet and cannot be suspended. Are you ready?[yn]:" iyn
+    read -e -p "The system is about to be officially installed. The whole process is connected to the Internet and cannot be suspended. Are you ready?「y/n」" iyn
     [[ -z ${iyn} ]] && iyn="y"
     if [[ ${iyn} == [Nn] ]] ; then
         echo -e "\033[41;30m Exit script \033[0m"
@@ -1009,7 +1028,7 @@ Install_drives(){
     echo
     echo -e "\033[45;37m INSTALL ALSA-UTILS \033[0m"
     Ipp ${os} alsa-utils
-    read -e -p "Whether to set the volume immediately" alsa_yn
+    read -e -p "Whether to set the volume immediately？「y/n」" alsa_yn
     [[ -z ${alsa_yn} ]] && alsa_yn="n"
     if [[ ${alsa_yn} == [Yy] ]] ; then
         alsamixer
@@ -1076,7 +1095,7 @@ Install_desktop(){
     echo -e "\033[45;37m ADD USER \033[0m"
     while true
     do
-        read -e -p "Create an individual user, please enter the user name:" username
+        read -e -p "Create an individual user, please enter the user name：" username
         if [[ ${username} != "" ]] ;then
             useradd -m -g users -s /bin/bash ${username}
             passwd ${username}
@@ -1085,7 +1104,7 @@ Install_desktop(){
             sed -i ''${i}'a'${username}' ALL=(ALL) ALL' /etc/sudoers
             break
         else
-            read -e -p "Are you sure not to add users? [y/n]" add_user_yn
+            read -e -p "Are you sure not to add users? 「y/n」" add_user_yn
             [[ -z ${add_user_yn} ]] && add_user_yn="n"
             if [[ ${add_user_yn} == [Yy] ]] ; then
                 break
@@ -1167,7 +1186,7 @@ Install_desktop(){
     Ipp ${os} networkmanager 
     systemctl enable NetworkManager
     
-    read -e -p "After the desktop installation is complete, whether to type 'reboot' immediately to restart, you can continue to use 'bash /archlinux-install.sh' to run this script later！[yn]:" redesk_yn
+    read -e -p "After the desktop installation is complete, whether to type 'reboot' immediately to restart, you can continue to use 'bash /archlinux-install.sh' to run this script later！「y/n」" redesk_yn
     [[ -z ${redesk_yn} ]] && redesk_yn="y"
     if [[ ${redesk_yn} == [Yy] ]] ; then
         echo -e "\033[41;30m REBOOT \033[0m"
@@ -1181,7 +1200,7 @@ Install_desktop(){
 
 # 操作菜单
 echo -e "Please enter the menu number. [1~n]"
-select num in "制作启动盘" "INSTALL-SYSTEM" "INSTALL-DESKTOP" "安装软件" "功能三" "更新脚本" "退出"
+select num in "制作启动盘" "INSTALL-SYSTEM" "INSTALL-DESKTOP" "安装软件" "更新脚本" "EXIT"
 do
         case ${num} in
                 "制作启动盘")
@@ -1202,14 +1221,14 @@ do
                     Ipp ${os} qqmusic-bin jstock
                     break
                     ;;
-                "功能三")
+                "更新脚本")
                     echo -e "\033[45;37m 功能三 \033[0m"
                     Test_function
                     break
                     ;;
-                "退出")
-                    echo -e "\033[41;30m 退出脚本 \033[0m"
-                    break
+                "EXIT")
+                    echo -e "\033[41;30m Exit the current script \033[0m"
+                    exit 1
                     ;;
                 *)
                     echo -e "\033[43;37m 输入错误，请重新输入 \033[0m"
