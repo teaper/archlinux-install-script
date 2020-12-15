@@ -8,6 +8,7 @@ sudo bash archlinux-install.sh
 - [x] 安装 ArchLinux 操作系统
   - [x] UEFI
   - [x] BIOS
-- [ ] 安装桌面环境
-
+- [x] 安装桌面环境
+  - [x] GNOME+GDM
+  - [x] KDE+SDDM
 

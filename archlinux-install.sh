@@ -1144,7 +1144,7 @@ Install_desktop(){
     # 安装桌面
     echo -e "\033[45;37m INSTALL DESKTOP AND DISPLAY MANAGER \033[0m"
     echo -e "Choose your desktop program and display manager. [1~n]"
-    select desk in "GNOME+GDM" "KDE+SDDM" "DDE" "DWM-SDDM" "SKIP"
+    select desk in "GNOME+GDM" "KDE+SDDM" "SKIP"
     do
         case ${desk} in
                 "GNOME+GDM")
@@ -1157,22 +1157,6 @@ Install_desktop(){
                     echo "\033[45;37mWelcome to KDE desktop\033"
                     Ipp ${os} plasma-meta konsole dolphin
                     systemctl enable sddm
-                    break
-                    ;;
-                "DDE")
-                    echo "\033[45;37mWelcome to DDE desktop\033"
-                    Ipp ${os} deepin deepin-extra
-                    
-                    #先修改lightdm配置文件
-                    nmb=`cat < /etc/lightdm/lightdm.conf | sed -n '/greeter-session/='`
-                    sed -i ''${nmb}'agreeter-session=lightdm-deepin-greeter' /etc/lightdm/lightdm.conf
-                    sed -i '${nmb}d' /etc/lightdm/lightdm.conf
-
-                    systemctl enable lightdm
-                    break
-                    ;;
-                "DWM-SDDM")
-                    echo "\033[45;37mWelcome to DWM desktop\033"
                     break
                     ;;
                 "SKIP")
@@ -1216,14 +1200,14 @@ do
                     break
                     ;;
                 "安装软件")
-                    echo -e "\033[45;37m 功能二 \033[0m"
+                    echo -e "\033[45;37m 安装软件 \033[0m"
                     echo "安装 QQ 音乐"
-                    Ipp ${os} qqmusic-bin jstock
+                    #Ipp ${os} qqmusic-bin jstock
                     break
                     ;;
                 "更新脚本")
-                    echo -e "\033[45;37m 功能三 \033[0m"
-                    Test_function
+                    echo -e "\033[45;37m 更新脚本 \033[0m"
+                    #Test_function
                     break
                     ;;
                 "EXIT")
