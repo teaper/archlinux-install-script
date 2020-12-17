@@ -12,6 +12,24 @@ Install_lolcat(){
     cd ../../
     rm -rf lolcat-master/ master.zip
 }
+# archlinux 新的联网方式
+iwd(){
+    while true
+    do
+        iwctl device list
+        read -e -p "Please enter device name:" device_name
+        if ! [[ -z ${device_name} ]] ; then
+            iwctl station ${device_name} get-networks
+            read -e -p "Please enter wifi name:" wifi_name
+            read -e -p "Please enter wifi passwd:" wifi_pwd
+            iwctl --passphrase ${wifi_pwd} station ${device_name} connect ${wifi_name}
+            if (($? == 0)) ; then
+                break
+            fi
+        fi
+    done
+
+}
 
 # 安装软件函数，两个参数，$1 系统，$2 要安装的软件名字
 Ipp(){
@@ -50,9 +68,11 @@ Ipp(){
                         pacman -S ${f}
                         if [ $? -ne 0 ]; then
                             # yay_var 记录下原本安装的软件
-                            yay_var=${f}
-                            Ipp $1 yay
-                            yay -S ${yay_var}
+                            yay_Qs=`pacman -Qs yay`
+                            if [[ ${yay_Qs} == "" ]] ; then
+                            pacman -S yay
+                            fi
+                            yay -S ${f}
                         fi
                     fi
                     ;;
@@ -97,7 +117,7 @@ Network_link(){
         case ${net} in
             "WIFI")
                 echo "Use WIFI connection"
-                wifi-menu
+                iwd
                 break
                 ;;
             "DHCP")
@@ -126,10 +146,13 @@ Network_link(){
 System_check(){
     # 切换 root 用户
     Check_root
-
+    
     # 检查系统类型
     echo -e "\033[45;37m CHECK THE SYSTEM \033[0m"
     echo "System: ${os}"
+    
+    # 当前用户
+    echo "USER: $USER"
     
     # 检查 x86_64 架构
     bit=`uname -m`
@@ -181,7 +204,7 @@ echo -e "\033[33m
 ||     Description: ArchLinux system installation script                          ||
 ||     Version:${sh_ver}                                                         ||
 ||     Author: teaper                                                             ||
-||     Home：https://github.com/teaper/archlinux-install-script                   ||
+||     Home:https://github.com/teaper/archlinux-install-script                    ||
 ====================================================================================
 \033[0m" | lolcat
 # TITLE 生成: http://patorjk.com/software/taag/#p=display&f=Slant&t=teaper
@@ -255,7 +278,7 @@ Download_iso(){
             Dd_iso
         fi
     else 
-        read -e -p "当前文件夹下没有 archlinux-${sh_ver}-${bit}.iso 镜像，是否立即下载「y/n」" iso_yn
+        read -e -p "当前文件夹下没有 archlinux-${sh_ver}-${bit}.iso 镜像，是否立即下载<<y/n>>" iso_yn
         [[ -z ${iso_yn} ]] && iso_yn="y"
         if [[ ${iso_yn} == [Yy] ]]; then
             echo "\n正在下载 iso 镜像文件"
@@ -322,7 +345,7 @@ Cfdisk_check(){
             partmap_size_1=`awk 'BEGIN{print '${partmap_size}'*10}'`
 
             if ((${size_GB_1} >= ${partmap_size_add1_1})) && ((${size_GB_1} <= ${partmap_size_1})) ; then
-                echo -e "${name} \033[35m[OK]\033[0m SIZE: ${size_GB}G \033[31mMATCH\033[0m ${partmap_size}G"
+                echo -e "${name} \033[35m[OK]\033[0m SIZE: ${size_GB}G \033[36mMATCH\033[0m ${partmap_size}G"
             else
                 echo -e "${name} \033[31m[NO]\033[0m SIZE: ${size_GB}G \033[31mMISMATCH\033[0m ${partmap_size}G"
                 NO=`awk 'BEGIN{print '${NO}'+1}'`
@@ -366,7 +389,7 @@ Cfdisk_ALL(){
     echo -e "\033[43;37m Partition order \033[0m"
     echo "Single disk:   EFI > SWAP > HOME > /"
     echo "Dual disk:   EFI > SWAP > / > HOME"
-    read -e -p "During the partitioning process, the partitioning strategy cannot be viewed. It is recommended to take a picture and record before continuing 「y/n」" cfdisk_yn
+    read -e -p "During the partitioning process, the partitioning strategy cannot be viewed. It is recommended to take a picture and record before continuing <<y/n>>" cfdisk_yn
     [[ -z ${cfdisk_yn} ]] && cfdisk_yn="y"
     if [[ ${cfdisk_yn} == [Yy] ]]; then
         echo ""
@@ -859,7 +882,7 @@ Install_linux(){
 # 切换到安装的系统
 Arch_chroot(){
     echo -e "\033[45;37m SWITCHING SYSTEM ARCH-CHROOT \033[0m"
-    read -e -p "The archlinux-install.sh script has been created under /mnt, please run the 'bash archlinux-install.sh'  command after 'arch-chroot' to continue the installation！「y/n」" chroot_yn
+    read -e -p "The archlinux-install.sh script has been created under /mnt, please run the 'bash archlinux-install.sh'  command after 'arch-chroot' to continue the installation！<<y/n>>" chroot_yn
     [[ -z ${chroot_yn} ]] && chroot_yn="y"
     if [[ ${chroot_yn} == [Nn] ]] ; then
         echo -e "\033[41;30m Exit script \033[0m"
@@ -886,7 +909,7 @@ Arch_chroot(){
     cat /etc/locale.conf
     echo ""
     echo -e "\033[45;37m Create hostname \033[0m"
-    read -e -p "Please enter your hostname（default: Arch）:" host_name
+    read -e -p "Please enter your hostname <<default: Arch>>:" host_name
     [[ -z \${host_name} ]] && host_name="Arch"
     if [[ \${host_name} != "Arch" ]] ; then
         echo \${host_name} > /etc/hostname
@@ -897,7 +920,7 @@ Arch_chroot(){
     echo "::1         localhost.localdomain   localhost"
     echo "127.0.1.1   \${host_name}.localdomain    \${host_name}"
     echo ""
-    echo -e "\033[45;37m Install network connection components（recommended: WIFI） \033[0m"
+    echo -e "\033[45;37m Install network connection components <<recommended: WIFI>> \033[0m"
     select net in "WIFI" "DHCP" "ADSL"
     do
         case \${net} in
@@ -922,7 +945,8 @@ Arch_chroot(){
                 systemctl disable dhcpcd.service
         esac
     done
-    echo ""
+    echo -e "\033[45;37m Initramfs \033[0m"
+    mkinitcpio -P
     echo -e "\033[45;37m Set ROOT user password \033[0m"
     passwd
     echo ""
@@ -1009,7 +1033,7 @@ Install_system(){
 
     # 开始分区
     Cfdisk_ALL
-    read -e -p "The system is about to be officially installed. The whole process is connected to the Internet and cannot be suspended. Are you ready?「y/n」" iyn
+    read -e -p "The system is about to be officially installed. The whole process is connected to the Internet and cannot be suspended. Are you ready？<<y/n>>" iyn
     [[ -z ${iyn} ]] && iyn="y"
     if [[ ${iyn} == [Nn] ]] ; then
         echo -e "\033[41;30m Exit script \033[0m"
@@ -1022,18 +1046,62 @@ Install_system(){
 }
 # 安装系统[end]-------------------------------------------------------------------------------------------
 
-# 安装驱动
-Install_drives(){
+# 安装桌面[start]***************************************
+Install_desktop(){
+    # 添加用户
+    echo
+    echo -e "\033[45;37m ADD USER \033[0m"
+    while true
+    do
+        read -e -p "Create an individual user, please enter the user name:" username
+        if [[ ${username} != "" ]] ;then
+            useradd -m -g users -s /bin/bash ${username}
+            passwd ${username}
+            # 配置 /etc/sudoers 文件
+            i=`cat /etc/sudoers | awk '/root ALL=\(ALL\) ALL/{print NR}'`
+            sed -i ''${i}'a'${username}' ALL=\(ALL\) ALL' /etc/sudoers
+            sed -i '5acommon_user='${username}'' /archlinux-install.sh
+            break
+        else
+            read -e -p "Are you sure not to add users?  <<y/n>>" add_user_yn
+            [[ -z ${add_user_yn} ]] && add_user_yn="n"
+            if [[ ${add_user_yn} == [Yy] ]] ; then
+                break
+            fi
+        fi
+    done
+
+    # 开启 bbr 加速
+    echo
+    echo -e "\033[45;37m OPEN BBR \033[0m"
+    bbr_info=`modinfo tcp_bbr | grep "tcp_bbr"`
+    if ! [[ -z ${bbr_info} ]] ; then
+        control=`sysctl net.ipv4.tcp_congestion_control | cut -d "=" -f 2`
+        if [[ ${control} != "bbr" ]] ; then
+            echo -e "Currently using \033[31m${control}\033[0m acceleration."
+            modprobe tcp_bbr
+            control_bbr=`sysctl net.ipv4.tcp_congestion_control | cut -d "=" -f 2`
+            echo -e "Change \033[31${control}\033[0m acceleration to \033[36m${control_bbr}\033[0m acceleration"
+            sysctl net.ipv4.tcp_congestion_control=bbr
+            lsmod | grep tcp_bbr
+            echo "tcp_bbr" > /etc/modules-load.d/80-bbr.conf
+            echo "net.ipv4.tcp_congestion_control=bbr" > /etc/sysctl.d/80-bbr.conf
+            echo "net.core.default_qdisc=fq" >> /etc/sysctl.d/80-bbr.conf
+        else
+            echo -e "Currently using \033[31m${control_bbr}\033[0m acceleration."
+        fi
+    fi
+    
     # 安装声卡驱动
     echo
     echo -e "\033[45;37m INSTALL ALSA-UTILS \033[0m"
     Ipp ${os} alsa-utils
-    read -e -p "Whether to set the volume immediately？「y/n」" alsa_yn
+    read -e -p "Whether to set the volume immediately？<<y/n>>" alsa_yn
     [[ -z ${alsa_yn} ]] && alsa_yn="n"
     if [[ ${alsa_yn} == [Yy] ]] ; then
         alsamixer
     fi
-
+    
     # 安装显卡驱动
     echo
     echo -e "\033[45;37m INSTALL GRAPHICS DRIVER \033[0m"
@@ -1053,93 +1121,12 @@ Install_drives(){
         echo "NVIDIA graphics driver installed"
     fi
 
-    # 安装触摸板驱动
-    Ipp ${os} xf86-input-synaptics
-
-}
-
-# 安装字体
-Install_ttf(){
-    echo
-    echo -e "\033[45;37m INSTALL FONTS \033[0m"
-    echo -e "The operating system recommends using \033[36mWQY\033[0m fonts[1,n-1]"
-    select ttf_num in "WQY" "DEJAVU" "JETBRAINS" "SKIP"
-    do
-        case ${ttf_num} in
-                "WQY")
-                    Ipp ${os} wqy-zenhei wqy-microhei
-                    continue
-                    ;;
-                "DEJAVU")
-                    Ipp ${os} ttf-dejavu
-                    #Install_system
-                    continue
-                    ;;
-                "JETBRAINS")
-                    Ipp ${os} ttf-jetbrains-mono
-                    continue
-                    ;;
-                "SKIP")
-                    break
-                    ;;
-                *)
-                    echo -e "\033[43;37m Input error, unknown option \033[0m"
-        esac
-    done
-}
-
-# 安装桌面[start]***************************************
-Install_desktop(){
-    # 添加用户
-    echo
-    echo -e "\033[45;37m ADD USER \033[0m"
-    while true
-    do
-        read -e -p "Create an individual user, please enter the user name：" username
-        if [[ ${username} != "" ]] ;then
-            useradd -m -g users -s /bin/bash ${username}
-            passwd ${username}
-            # 配置 /etc/sudoers 文件
-            i=cat /etc/sudoers | awk '/root ALL=\(ALL\) ALL/{print NR}'
-            sed -i ''${i}'a'${username}' ALL=(ALL) ALL' /etc/sudoers
-            break
-        else
-            read -e -p "Are you sure not to add users? 「y/n」" add_user_yn
-            [[ -z ${add_user_yn} ]] && add_user_yn="n"
-            if [[ ${add_user_yn} == [Yy] ]] ; then
-                break
-            fi
-        fi
-    done
-    
-    # 安装驱动
-    Install_drives
-
-    # 开启 bbr 加速
-    echo
-    echo -e "\033[45;37m OPEN BBR \033[0m"
-    bbr_info=`modinfo tcp_bbr | grep "tcp_bbr"`
-    if ! [[ -z ${bbr_info} ]] ; then
-        control=`sysctl net.ipv4.tcp_congestion_control | cut -d "=" -f 2`
-        if [[ ${control} != "bbr" ]] ; then
-            echo -e "Currently using \033[31m${control}\033[0m acceleration."
-            modprobe tcp_bbr
-            control_bbr=`sysctl net.ipv4.tcp_congestion_control | cut -d "=" -f 2`
-            echo -e "Change \033[31${control}\033[0m acceleration to \033[36m${control_bbr}\033[0m acceleration"
-            sudo sysctl net.ipv4.tcp_congestion_control=bbr
-            echo "tcp_bbr" > /etc/modules-load.d/80-bbr.conf
-            echo "net.ipv4.tcp_congestion_control=bbr" > /etc/sysctl.d/80-bbr.conf
-            echo "net.core.default_qdisc=fq" >> /etc/sysctl.d/80-bbr.conf
-        else
-            echo -e "Currently using \033[31m${control_bbr}\033[0m acceleration."
-        fi
-    fi
-
     # 安装 x 服务
     Ipp ${os} xorg
     
-    # 安装字体
-    Install_ttf
+    # 安装系统字体
+    echo -e "\033[45;37m INSTALL FONTS \033[0m"
+     Ipp ${os} wqy-zenhei wqy-microhei ttf-dejavu ttf-jetbrains-mono
 
     # 安装桌面
     echo -e "\033[45;37m INSTALL DESKTOP AND DISPLAY MANAGER \033[0m"
@@ -1166,25 +1153,135 @@ Install_desktop(){
                     echo -e "\033[43;37m Input error, re-select your desktop manager \033[0m"
         esac
     done
+    
     # 启用网络管理
+    echo ""
+    echo -e "\033[45;37m INSTALL NETWORKMANAGER \033[0m"
     Ipp ${os} networkmanager 
     systemctl enable NetworkManager
     
-    read -e -p "After the desktop installation is complete, whether to type 'reboot' immediately to restart, you can continue to use 'bash /archlinux-install.sh' to run this script later！「y/n」" redesk_yn
+    # 重启提示
+    read -e -p "After the desktop installation is complete, whether to type 'reboot' immediately to restart, you can continue to use 'bash /archlinux-install.sh' to run this script later！<<y/n>>" redesk_yn
     [[ -z ${redesk_yn} ]] && redesk_yn="y"
     if [[ ${redesk_yn} == [Yy] ]] ; then
         echo -e "\033[41;30m REBOOT \033[0m"
         reboot
     fi
+}
+# 安装桌面[end]********************************************
 
-
+# 安装其他驱动
+Install_drives(){
+    echo -e "\033[45;37m 其他驱动 \033[0m"
+    while true
+    do
+        echo -e "请输入编号选择您要安装的驱动[1~n]"
+        select num in "触摸板" "蓝牙" "打印机" "EXIT"
+        do
+            case ${num} in
+                "触摸板")
+                    # 安装触摸板驱动
+                    echo -e "\033[45;37m Install the touchpad driver \033[0m"
+                    Ipp ${os} xf86-input-synaptics
+                    #TapButton=`synclient -l | grep "TapButton1" | cut -d "=" -f 2`
+                    #if [[ ${TapButton} == " 0" ]] ; then
+                        sed -i '13aOption "TapButton1" "1"' /usr/share/X11/xorg.conf.d/70-synaptics.conf
+                        sed -i '13aOption "TapButton2" "3"' /usr/share/X11/xorg.conf.d/70-synaptics.conf
+                        sed -i '13aOption "TapButton3" "2"' /usr/share/X11/xorg.conf.d/70-synaptics.conf
+                        sed -i '13aOption "VertEdgeScroll" "on"' /usr/share/X11/xorg.conf.d/70-synaptics.conf
+                        sed -i '13aOption "VertTwoFingerScroll" "on"' /usr/share/X11/xorg.conf.d/70-synaptics.conf
+                        sed -i '13aOption "HorizEdgeScroll" "on"' /usr/share/X11/xorg.conf.d/70-synaptics.conf
+                        sed -i '13aOption "HorizTwoFingerScroll" "on"' /usr/share/X11/xorg.conf.d/70-synaptics.conf
+                        sed -i '13aOption "CircularScrolling" "on"' /usr/share/X11/xorg.conf.d/70-synaptics.conf
+                        sed -i '13aOption "CircScrollTrigger" "2"' /usr/share/X11/xorg.conf.d/70-synaptics.conf
+                        sed -i '13aOption "EmulateTwoFingerMinZ" "40"' /usr/share/X11/xorg.conf.d/70-synaptics.conf
+                        sed -i '13aOption "EmulateTwoFingerMinW" "8"' /usr/share/X11/xorg.conf.d/70-synaptics.conf
+                        sed -i '13aOption "FingerLow" "30"' /usr/share/X11/xorg.conf.d/70-synaptics.conf
+                        sed -i '13aOption "FingerHigh" "50"' /usr/share/X11/xorg.conf.d/70-synaptics.conf
+                        sed -i '13aOption "MaxTapTime" "125"' /usr/share/X11/xorg.conf.d/70-synaptics.conf
+                        source /usr/share/X11/xorg.conf.d/70-synaptics.conf >/dev/null 2>&1
+                    #fi
+                    cat /usr/share/X11/xorg.conf.d/70-synaptics.conf
+                    break
+                    ;;
+                "蓝牙")
+                    break
+                    ;;
+                "打印机")
+                    break
+                    ;;
+                "EXIT")
+                    echo -e "\033[41;30m Exit the current script \033[0m"
+                    exit 1
+                    ;;
+                *)
+                    echo -e "\033[43;37m 输入错误，请重新输入 \033[0m"
+            esac
+        done
+    done
 }
 
-# 安装桌面[end]********************************************
+# 添加 CN 源
+Archlinuxcn(){
+    echo -e "\033[45;37m ADD ARCHLINUXCN MIRRORS \033[0m"
+    mirrors_cn=`cat /etc/pacman.conf | grep "archlinuxcn/\$arch" | cut -d "=" -f 2`
+    if [[ ${mirrors_cn} == "" ]] ; then
+        echo -e "\033[36m Added https://mirrors.ustc.edu.cn/archlinuxcn/\$arch \033[0m"
+        echo "[archlinuxcn]" >> /etc/pacman.conf
+        echo "Server = https://repo.archlinuxcn.org/\$arch" >> /etc/pacman.conf
+        echo "[multilib]" >> /etc/pacman.conf
+        echo "Include = /etc/pacman.d/mirrorlist" >> /etc/pacman.conf
+        # 生成 GnuPG-2.1 密钥环
+        pacman -Syu haveged
+        systemctl start haveged
+        systemctl enable haveged
+        rm -fr /etc/pacman.d/gnupg
+        pacman-key --init
+        pacman-key --populate archlinux
+        # 安装密钥包
+        pacman -S archlinuxcn-keyring
+        pacman-key --populate archlinuxcn
+        pacman -S archlinuxcn-mirrorlist-git
+        pacman -Syy
+    fi
+    Ipp ${os} net-tools dnsutils inetutils iproute2 yaourt yay
+}
+
+# 安装软件菜单
+Install_packages(){
+    echo -e "\033[45;37m 软件列表 \033[0m"
+    echo -e "\033[33m 建议：在安装软件之前先配置 ArchLinuxCN 源\033[0m"
+    while true
+    do
+        echo -e "请输入编号选择您要安装的应用程序[1~n]"
+        select package in "配置CN源" "GIT&&SSH" "Gitkraken" "SVN" "on-my-zsh" "浏览器" "输入法" "科学上网" "网易云音乐" "QQ音乐" "TIM&&QQ" "微信" "微信小程序开发工具" "钉钉" "Telegram" "多线程下载工具" "BaiduPCS" "百度网盘" "eDEX-UI" "MEGAsync网盘" "OBS-STUDIO" "哔哩哔哩弹幕库" "Teamviewer" "WPS" "JDK" "XMind" "Drawio" "Eclipse" "MyEclipse" "Maven" "Tomcat" "Redis" "Docker" "MySQL&&MariaDB" "DataGrip" "DBeaver" "IntelliJIDEA" "Pycharm" "AndroidStudio" "VMware" "Virtualbok" "Visual Studio Code" "GitBook" "tldr" "xchm" "Krita" "GIMP" "Slack" "Goldendict" "有到云笔记" "Notion" "Jstock" "EXIT"
+        do
+            case ${package} in
+                "配置CN源")
+                    Archlinuxcn
+                    break
+                    ;;
+                "GIT&&SSH")
+                    break
+                    ;;
+                "Gitkraken")
+                    break
+                    ;;
+                "EXIT")
+                    echo -e "\033[41;30m Exit the current script \033[0m"
+                    exit 1
+                    ;;
+                *)
+                    echo -e "\033[43;37m 输入错误，请重新输入 \033[0m"
+            esac
+        done
+    done
+}
+
 
 # 操作菜单
 echo -e "Please enter the menu number. [1~n]"
-select num in "制作启动盘" "INSTALL-SYSTEM" "INSTALL-DESKTOP" "安装软件" "更新脚本" "EXIT"
+select num in "制作启动盘" "INSTALL-SYSTEM" "INSTALL-DESKTOP" "其他驱动" "安装软件" "游戏" "更新脚本" "EXIT"
 do
         case ${num} in
                 "制作启动盘")
@@ -1199,10 +1296,15 @@ do
                     Install_desktop
                     break
                     ;;
+                "其他驱动")
+                    Install_drives
+                    break
+                    ;;
                 "安装软件")
-                    echo -e "\033[45;37m 安装软件 \033[0m"
-                    echo "安装 QQ 音乐"
-                    #Ipp ${os} qqmusic-bin jstock
+                    Install_packages
+                    break
+                    ;;
+                "游戏")
                     break
                     ;;
                 "更新脚本")
