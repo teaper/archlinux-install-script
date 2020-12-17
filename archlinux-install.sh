@@ -181,14 +181,14 @@ System_check(){
 }
 
 # 定义全局变量
-sh_ver=`date -d "$(date +%y%m)01 last month" +%Y.%m.01`
+iso_release=`date -d "$(date +%y%m)01 last month" +%Y.%m.01`
 source /etc/os-release
 os="$ID"
 # 镜像大小（MB）
 iso_size=682
 # 引导方式
 grub=UEFI
-
+shell_ver="0.1.9"
 # 脚本标题图案
 System_check 
 
@@ -202,16 +202,32 @@ echo -e "\033[33m
 =================================== Quick Start ====================================
 ||     OS: Arch Linux x86_64                                                      ||
 ||     Description: ArchLinux system installation script                          ||
-||     Version:${sh_ver}                                                         ||
+||     Version:${shell_ver}                                                              ||
 ||     Author: teaper                                                             ||
 ||     Home:https://github.com/teaper/archlinux-install-script                    ||
 ====================================================================================
 \033[0m" | lolcat
 # TITLE 生成: http://patorjk.com/software/taag/#p=display&f=Slant&t=teaper
 
-# 函数
-Test_function(){
-    echo -e "Hello ${USER}"
+# 检查脚本更新
+Update_shell(){
+    latest=$(wget -qO- -t1 -T2 "https://api.github.com/repos/teaper/archlinux-install-script/releases/latest" | grep "tag_name" | head -n 1 | awk -F ":" '{print $2}' | sed 's/\"//g;s/,//g;s/ //g')
+    echo "最新版本:${latest}"
+    for((i=1;i<=3;i++));
+    do
+        latest_num=`echo "${latest}" | cut -d "." -f ${i}`
+        current_num=`echo "${shell_ver}" | cut -d "." -f ${i}`
+        if (( latest_num > current_num )) ; then
+            echo -e "当前版本: v${shell_ver} 最新版本: \033[36m${latest}\033[0m"
+            read -e -p "是否下载最新版本<<y/n>>:" download_shell_yn
+            [[ -z ${download_shell_yn} ]] && download_shell_yn="y"
+            if [[ ${download_shell_yn} == [Yy] ]] ; then
+                curl -LO https://github.com/teaper/archlinux-install-script/releases/download/${latest}/archlinux-install.sh
+                echo -e "\033[33m 脚本已更新\033[0m"
+            fi
+            break
+        fi
+    done
 }
 
 # 制作启动盘
@@ -251,7 +267,7 @@ Dd_iso(){
         echo -e "\033[45;37m U 盘容量: `fdisk -l /dev/${dd_disk} | awk -F " " 'NR==1{print $3}'` `fdisk -l /dev/${dd_disk} | awk -F " " 'NR==1{print $4}' | cut -d "," -f 1` \033[0m"
         if test $[dd_disk_size] -gt $[iso_d_size]; then
             echo -e "\033[43;37m 开始写入 \033[0m"
-            dd if=archlinux-${sh_ver}-${bit}.iso of=/dev/${dd_disk} bs=1440k oflag=sync
+            dd if=archlinux-${iso_release}-${bit}.iso of=/dev/${dd_disk} bs=1440k oflag=sync
             echo -e "\033[45;37m 写入完成\033[0m"
         else
             echo -e "\033[41;30m U 盘可用空间不足，请更换 U 盘后再试 \033[0m"
@@ -264,25 +280,25 @@ Dd_iso(){
 #下载 iso 镜像
 Download_iso(){
     echo -e "\033[45;37m 下载 iso 镜像 \033[0m"
-    if [[ -e ./archlinux-${sh_ver}-${bit}.iso ]] ;then 
-        iso_d_size=`ls -l archlinux-${sh_ver}-${bit}.iso | awk '{print $5}'`
-        echo "archlinux-${sh_ver}-${bit}.iso 镜像文件已存在（size: $(( ${iso_d_size}/1024/1024 )) MiB）" && echo
+    if [[ -e ./archlinux-${iso_release}-${bit}.iso ]] ;then 
+        iso_d_size=`ls -l archlinux-${iso_release}-${bit}.iso | awk '{print $5}'`
+        echo "archlinux-${iso_release}-${bit}.iso 镜像文件已存在（size: $(( ${iso_d_size}/1024/1024 )) MiB）" && echo
         
         #判断文件大小是否正确
         iso_f_size=$(( ${iso_size}*1024*1024 ))
         if test $[iso_d_size] -le $[iso_f_size]; then
             echo -e "\033[41;30m iso 文件已损坏，正在重新下载 \033[0m"
-            wget -N "http://mirrors.163.com/archlinux/iso/${sh_ver}/archlinux-${sh_ver}-${bit}.iso" archlinux-${sh_ver}-${bit}.iso
+            wget -N "http://mirrors.163.com/archlinux/iso/${iso_release}/archlinux-${iso_release}-${bit}.iso" archlinux-${iso_release}-${bit}.iso
             Dd_iso
         else
             Dd_iso
         fi
     else 
-        read -e -p "当前文件夹下没有 archlinux-${sh_ver}-${bit}.iso 镜像，是否立即下载<<y/n>>" iso_yn
+        read -e -p "当前文件夹下没有 archlinux-${iso_release}-${bit}.iso 镜像，是否立即下载<<y/n>>" iso_yn
         [[ -z ${iso_yn} ]] && iso_yn="y"
         if [[ ${iso_yn} == [Yy] ]]; then
             echo "\n正在下载 iso 镜像文件"
-            wget -N "http://mirrors.163.com/archlinux/iso/${sh_ver}/archlinux-${sh_ver}-${bit}.iso" archlinux-${sh_ver}-${bit}.iso
+            wget -N "http://mirrors.163.com/archlinux/iso/${iso_release}/archlinux-${iso_release}-${bit}.iso" archlinux-${iso_release}-${bit}.iso
             Dd_iso
         else
             echo -e "\033[43;37m 已取消启动盘制作 \033[0m"
@@ -1309,7 +1325,7 @@ do
                     ;;
                 "更新脚本")
                     echo -e "\033[45;37m 更新脚本 \033[0m"
-                    #Test_function
+                    Update_shell
                     break
                     ;;
                 "EXIT")
