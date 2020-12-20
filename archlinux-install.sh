@@ -5,7 +5,7 @@ export PATH
 
 # 安装 lolcat
 Install_lolcat(){
-    wget https://github.com/busyloop/lolcat/archive/master.zip
+    curl -LO https://github.com/busyloop/lolcat/archive/master.zip
     unzip master.zip
     cd locat-master/bin
     gem install lolcat
@@ -23,6 +23,7 @@ iwd(){
             read -e -p "Please enter wifi name:" wifi_name
             read -e -p "Please enter wifi passwd:" wifi_pwd
             iwctl --passphrase ${wifi_pwd} station ${device_name} connect ${wifi_name}
+            Network_check
             if (($? == 0)) ; then
                 break
             fi
@@ -184,8 +185,6 @@ System_check(){
 iso_release=`date -d "$(date +%y%m)01 last month" +%Y.%m.01`
 source /etc/os-release
 os="$ID"
-# 镜像大小（MB）
-iso_size=682
 # 引导方式
 grub=UEFI
 shell_ver="0.1.9"
@@ -211,7 +210,7 @@ echo -e "\033[33m
 
 # 检查脚本更新
 Update_shell(){
-    latest=$(wget -qO- -t1 -T2 "https://api.github.com/repos/teaper/archlinux-install-script/releases/latest" | grep "tag_name" | head -n 1 | awk -F ":" '{print $2}' | sed 's/\"//g;s/,//g;s/ //g')
+    latest=$(curl -L "https://api.github.com/repos/teaper/archlinux-install-script/releases/latest" | grep "tag_name" | head -n 1 | awk -F ":" '{print $2}' | sed 's/\"//g;s/,//g;s/ //g')
     echo "最新版本:${latest}"
     for((i=1;i<=3;i++));
     do
@@ -224,6 +223,7 @@ Update_shell(){
             if [[ ${download_shell_yn} == [Yy] ]] ; then
                 curl -LO https://github.com/teaper/archlinux-install-script/releases/download/${latest}/archlinux-install.sh
                 echo -e "\033[33m 脚本已更新\033[0m"
+                exit 1
             fi
             break
         fi
@@ -280,16 +280,20 @@ Dd_iso(){
 #下载 iso 镜像
 Download_iso(){
     echo -e "\033[45;37m 下载 iso 镜像 \033[0m"
-    if [[ -e ./archlinux-${iso_release}-${bit}.iso ]] ;then 
+    if [[ -e archlinux-${iso_release}-${bit}.iso ]] ; then
         iso_d_size=`ls -l archlinux-${iso_release}-${bit}.iso | awk '{print $5}'`
-        echo "archlinux-${iso_release}-${bit}.iso 镜像文件已存在（size: $(( ${iso_d_size}/1024/1024 )) MiB）" && echo
-        
-        #判断文件大小是否正确
-        iso_f_size=$(( ${iso_size}*1024*1024 ))
-        if test $[iso_d_size] -le $[iso_f_size]; then
+        # 文件完整性
+        echo -e "\n\033[33m 校验文件\033[0m"
+        curl -LO http://mirrors.163.com/archlinux/iso/${iso_release}/sha1sums.txt >/dev/null 2>&1
+        sha1sums_iso=`sha1sum -b archlinux-${iso_release}-${bit}.iso | cut -d " " -f 1`
+        sha1sum_yn=`head -1  sha1sums.txt | cut -d " " -f 1`
+        echo -e "\033[33m 校验完成\033[0m\n"
+        rm -rf sha1sums.txt
+        #判断校验码是否匹配
+        if [[ ${sha1sums_iso} != ${sha1sum_yn} ]] ; then
             echo -e "\033[41;30m iso 文件已损坏，正在重新下载 \033[0m"
-            wget -N "http://mirrors.163.com/archlinux/iso/${iso_release}/archlinux-${iso_release}-${bit}.iso" archlinux-${iso_release}-${bit}.iso
-            Dd_iso
+            curl -LO http://mirrors.163.com/archlinux/iso/${iso_release}/archlinux-${iso_release}-${bit}.iso
+            Download_iso
         else
             Dd_iso
         fi
@@ -298,8 +302,8 @@ Download_iso(){
         [[ -z ${iso_yn} ]] && iso_yn="y"
         if [[ ${iso_yn} == [Yy] ]]; then
             echo "\n正在下载 iso 镜像文件"
-            wget -N "http://mirrors.163.com/archlinux/iso/${iso_release}/archlinux-${iso_release}-${bit}.iso" archlinux-${iso_release}-${bit}.iso
-            Dd_iso
+            curl -LO http://mirrors.163.com/archlinux/iso/${iso_release}/archlinux-${iso_release}-${bit}.iso
+            Download_iso
         else
             echo -e "\033[43;37m 已取消启动盘制作 \033[0m"
         fi
@@ -913,13 +917,13 @@ Arch_chroot(){
     # 保存变量值
     grub_new=${grub}
     echo -e "\033[45;37m Set time \033[0m"
-    ln -sf /usr/share/zoneinfo/Asia/Shanghai /etc/localtime
+    ln -sf /usr/share/zoneinfo/\$(tzselect) /etc/localtime
     hwclock --systohc --utc
     echo ""
     echo -e "\033[45;37m Modify the encoding format \033[0m"
     pacman -S vim
-    echo "en_US.UTF-8 UTF-8" >> /etc/locale.gen
-    echo "zh_CN.UTF-8 UTF-8" >> /etc/locale.gen
+    sed -i '/en_US.UTF-8/{s/#//}' /etc/locale.gen
+    sed -i '/zh_CN.UTF-8/{s/#//}' /etc/locale.gen
     locale-gen
     echo LANG=en_US.UTF-8 > /etc/locale.conf
     cat /etc/locale.conf
@@ -1037,13 +1041,15 @@ Install_system(){
     # 更新系统时间
     timedatectl set-ntp true
 
-    # 修改源文件
+    # 解开所有中国大陆的源
+    sed -i '/China/!{n;/Server/s/^/#/};t;n' /etc/pacman.d/mirrorlist
     cat /etc/pacman.d/mirrorlist | sed -n '1,2'p | grep mirrors.ustc.edu.cn >/dev/null 2>&1
     if (($? != 0)); then
         sed -i '1iServer = http://mirrors.aliyun.com/archlinux/$repo/os/$arch' /etc/pacman.d/mirrorlist
         sed -i '1iServer = https://mirrors.ustc.edu.cn/archlinux/$repo/os/$arch' /etc/pacman.d/mirrorlist
     fi
     pacman -Syy
+    
     # 分区策略
     Disk_map
 
@@ -1142,7 +1148,7 @@ Install_desktop(){
     
     # 安装系统字体
     echo -e "\033[45;37m INSTALL FONTS \033[0m"
-     Ipp ${os} wqy-zenhei wqy-microhei ttf-dejavu ttf-jetbrains-mono
+     Ipp ${os} wqy-zenhei wqy-microhei ttf-dejavu ttf-jetbrains-mono adobe-source-han-sans-cn-fonts
 
     # 安装桌面
     echo -e "\033[45;37m INSTALL DESKTOP AND DISPLAY MANAGER \033[0m"
