@@ -636,8 +636,6 @@ Mkfs_disks(){
                     ;;
                 "SKIP")
                     rm diskmap >/dev/null 2>&1
-                    # 挂载分区
-                    Mount_parts
                     break
                     ;;
                 "EXIT")
