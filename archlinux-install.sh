@@ -203,7 +203,8 @@ echo -e "\033[33m
 ||     Description: ArchLinux system installation script                          ||
 ||     Version:${shell_ver}                                                              ||
 ||     Author: teaper                                                             ||
-||     Home:https://github.com/teaper/archlinux-install-script                    ||
+||     GitHub:https://github.com/teaper/archlinux-install-script                  ||
+||     Help:https://teaper.dev/ArchLinux-java-febe1fe5bc764929aaeb02ed933c04f8    ||
 ====================================================================================
 \033[0m" | lolcat
 # TITLE 生成: http://patorjk.com/software/taag/#p=display&f=Slant&t=teaper
@@ -459,7 +460,7 @@ Cm_disks(){
         fi
     done
     echo -e "\n\033[33m[Operation log]\033[0m"
-    cat cmd.log >/dev/null 2>&1 
+    cat cmd.log
     rm cmd.log >/dev/null 2>&1 
     echo ""
 }
@@ -491,7 +492,7 @@ Cm_mount(){
         fi
     done
     echo -e "\n\033[33m[Operation log]\033[0m"
-    cat cmd.log >/dev/null 2>&1 
+    cat cmd.log
     rm cmd.log >/dev/null 2>&1 
     echo ""
 }
@@ -1162,7 +1163,7 @@ Install_desktop(){
                     ;;
                 "KDE+SDDM")
                     echo "\033[45;37mWelcome to KDE desktop\033"
-                    Ipp ${os} plasma-meta konsole dolphin
+                    Ipp ${os} plasma-meta kde-applications-meta konsole dolphin
                     systemctl enable sddm
                     break
                     ;;
@@ -1264,7 +1265,135 @@ Archlinuxcn(){
         pacman -S archlinuxcn-mirrorlist-git
         pacman -Syy
     fi
-    Ipp ${os} net-tools dnsutils inetutils iproute2 yaourt yay
+    Ipp ${os} net-tools dnsutils inetutils iproute2 pacman-contrib yaourt yay
+}
+
+# 安装和配置 Git&SSH
+Git_SSH(){
+    echo -e "\033[45;37m 安装 GIT 及 SSH \033[0m"
+    Ipp ${os} git openssh gitflow-avh
+    read -e -p "请输入 GIT 用户名: " git_name
+    if [[ ${git_name} != "" ]] ; then
+        sudo -u $(logname) git config --global user.name "${git_name}"
+    fi
+    read -e -p "请输入 GIT 邮箱: " git_email
+    if [[ ${git_email} != "" ]] ; then
+        sudo -u $(logname) git config --global user.email "${git_email}"
+    fi
+    sudo -u $(logname) git config --global alias.co checkout
+    sudo -u $(logname) git config --global alias.ci commit
+    sudo -u $(logname) git config --global alias.st status
+    sudo -u $(logname) git config --global alias.br branch
+
+    sudo -u $(logname) git config --global alias.psm 'push origin main'
+    sudo -u $(logname) git config --global alias.plm 'pull origin main'
+
+    sudo -u $(logname) git config --global alias.lg "log --graph --pretty=format:'%Cred%h%Creset -%C(yellow)%d%Creset %s %Cgreen(%cr) %C(bold blue)<%an>%Creset' --abbrev-commit --date=relative"
+
+    sudo -u $(logname) git config --list
+    
+    echo -e "\033[33m 配置普通用户 $(logname) 的 SSH 公钥，默认一直按 Enter 即可 \033[0m"
+    sudo -u $(logname) ssh-keygen -t rsa -C "${git_email}"
+    echo -e "\033[31m 将SSH 认证公钥复制到服务器 \033[0m"
+    pub_key=`cat /home/$(logname)/.ssh/id_rsa.pub`
+    echo ""
+    echo -e "echo '\033[33m${pub_key}\033[0m' >> ~/.ssh/authorized_keys"
+    echo ""
+}
+
+# 安装浏览器
+Browsers(){
+    echo -e "\033[45;37m 浏览器列表 \033[0m"
+    while true
+    do
+        select browser in "Chrome" "Chromium" "Firefox" "Microsoft-Edge" "欧朋" "洋葱" "EXIT"
+        do
+            case ${browser} in
+                "Chrome")
+                    Ipp ${os} google-chrome
+                    break
+                    ;;
+                "Chromium")
+                    Ipp ${os} chromium
+                    break
+                    ;;
+                "FireFox")
+                    Ipp ${os} firefox
+                    break
+                    ;;
+                "Microsoft-Edge")
+                    Ipp ${os} microsoft-edge-dev-bin
+                    break
+                    ;;
+                "欧朋")
+                    Ipp ${os} opera
+                    break
+                    ;;
+                "洋葱")
+                    Ipp ${os} tor-browser
+                    break
+                    ;;
+                "EXIT")
+                    exit 1
+                    ;;
+                *)
+                    echo -e "\033[43;37m 输入错误，请重新输入 \033[0m"
+            esac
+        done
+    done
+}
+
+# Fcitx 输入法
+Fcitx-Input(){
+    echo -e "\033[45;37m Fcitx 输入法列表 \033[0m"
+    select fcitx in "搜狗输入法" "Fcitx5输入法" "EXIT"
+    do
+        case ${fcitx} in
+            "搜狗输入法")
+                break
+                Ipp ${os} fcitx-sogoupinyin
+                if [[ ${DESKTOP_SESSION} == "/usr/share/xsessions/plasma" ]] || [[ ${DESKTOP_SESSION} == "kde" ]] ; then
+                    Ipp ${os} kcm-fcitx
+                fi
+                echo -e "\033[33m KDE 桌面打开 Fcitx Configuration 添加 Keyboard Chinese 和 sogoupinyin 即可\033[0m"
+                ;;
+            "Fcitx5输入法")
+                Ipp ${os} fcitx5 fcitx5-chinese-addons fcitx5-chewing
+                Ipp ${os} fcitx5-qt fcitx5-gtk fcitx5-qt4-git
+                Ipp ${os} fcitx5-pinyin-zhwiki fcitx5-pinyin-moegirl
+                Ipp ${os} fcitx5-configtool
+                Ipp ${os} fcitx5-material-color noto-fonts-emoji noto-fonts-sc
+                # 图标存储在去不图床 https://7bu.top/
+                curl -o zh.svg https://7.dusays.com/2021/01/24/1f34aac60a1ca.svg
+                mv zh.svg /usr/share/icons/hicolor/48x48/apps/fcitx-pinyin.svg
+                kill `ps -A | grep fcitx5 | awk '{print $1}'` && fcitx5&
+                echo -e "\033[33m 打开 Fcitx 5 Configuration 添加 pinyin 即可\033[0m"
+                break
+                ;;
+            "EXIT")
+                exit 1
+                ;;
+            *)
+                echo -e "\033[43;37m 输入错误，请重新输入 \033[0m"
+        esac
+    done
+    # 配置输入法环境变量
+    echo "INPUT_METHOD  DEFAULT=fcitx5" >> /home/$(logname)/.xprofile
+    echo "GTK_IM_MODULE DEFAULT=fcitx5" >> /home/$(logname)/.xprofile
+    echo "QT_IM_MODULE  DEFAULT=fcitx5" >> /home/$(logname)/.xprofile
+    echo "XMODIFIERS    DEFAULT=\@im=fcitx5" >> /home/$(logname)/.xprofile
+
+    echo "INPUT_METHOD  DEFAULT=fcitx5" >> /etc/environment
+    echo "GTK_IM_MODULE DEFAULT=fcitx5" >> /etc/environment
+    echo "QT_IM_MODULE  DEFAULT=fcitx5" >> /etc/environment
+    echo "XMODIFIERS    DEFAULT=\@im=fcitx5" >> /etc/environment
+
+    echo "INPUT_METHOD  DEFAULT=fcitx5" >> /home/$(logname)/.pam_environment
+    echo "GTK_IM_MODULE DEFAULT=fcitx5" >> /home/$(logname)/.pam_environment
+    echo "QT_IM_MODULE  DEFAULT=fcitx5" >> /home/$(logname)/.pam_environment
+    echo "XMODIFIERS    DEFAULT=\@im=fcitx5" >> /home/$(logname)/.pam_environment
+
+    cp /home/$(logname)/.pam_environment /home/$(logname)/.config/autostart
 }
 
 # 安装软件菜单
@@ -1282,9 +1411,89 @@ Install_packages(){
                     break
                     ;;
                 "GIT&&SSH")
+                    Git_SSH
                     break
                     ;;
                 "Gitkraken")
+                    Ipp ${os} gitkraken
+                    break
+                    ;;
+                "SVN")
+                    Ipp ${os} svn
+                    break
+                    ;;
+                "on-my-zsh")
+                    break
+                    ;;
+                "浏览器")
+                    Browsers
+                    break
+                    ;;
+                "输入法")
+                    Fcitx-Input
+                    break
+                    ;;
+                "")
+                    break
+                    ;;
+                "")
+                    break
+                    ;;
+                "")
+                    break
+                    ;;
+                "")
+                    break
+                    ;;
+                "")
+                    break
+                    ;;
+                "")
+                    break
+                    ;;
+                "")
+                    break
+                    ;;
+                "")
+                    break
+                    ;;
+                "")
+                    break
+                    ;;
+                "")
+                    break
+                    ;;
+                "")
+                    break
+                    ;;
+                "")
+                    break
+                    ;;
+                "")
+                    break
+                    ;;
+                "")
+                    break
+                    ;;
+                "")
+                    break
+                    ;;
+                "")
+                    break
+                    ;;
+                "")
+                    break
+                    ;;
+                "")
+                    break
+                    ;;
+                "")
+                    break
+                    ;;
+                "")
+                    break
+                    ;;
+                "")
                     break
                     ;;
                 "EXIT")
