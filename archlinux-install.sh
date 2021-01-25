@@ -73,7 +73,7 @@ Ipp(){
                             if [[ ${yay_Qs} == "" ]] ; then
                             pacman -S yay
                             fi
-                            yay -S ${f}
+                            sudo -u $(logname) yay -S ${f}
                         fi
                     fi
                     ;;
@@ -187,7 +187,7 @@ source /etc/os-release
 os="$ID"
 # 引导方式
 grub=UEFI
-shell_ver="0.1.9"
+shell_ver="0.2.0"
 # 脚本标题图案
 System_check 
 
@@ -1306,7 +1306,7 @@ Browsers(){
     echo -e "\033[45;37m 浏览器列表 \033[0m"
     while true
     do
-        select browser in "Chrome" "Chromium" "Firefox" "Microsoft-Edge" "欧朋" "洋葱" "EXIT"
+        select browser in "Chrome" "Chromium" "Firefox" "Microsoft-Edge" "Opera" "Tor" "EXIT"
         do
             case ${browser} in
                 "Chrome")
@@ -1317,7 +1317,7 @@ Browsers(){
                     Ipp ${os} chromium
                     break
                     ;;
-                "FireFox")
+                "Firefox")
                     Ipp ${os} firefox
                     break
                     ;;
@@ -1325,11 +1325,11 @@ Browsers(){
                     Ipp ${os} microsoft-edge-dev-bin
                     break
                     ;;
-                "欧朋")
+                "Opera")
                     Ipp ${os} opera
                     break
                     ;;
-                "洋葱")
+                "Tor")
                     Ipp ${os} tor-browser
                     break
                     ;;
@@ -1344,66 +1344,67 @@ Browsers(){
 }
 
 # Fcitx 输入法
-Fcitx-Input(){
-    echo -e "\033[45;37m Fcitx 输入法列表 \033[0m"
-    select fcitx in "搜狗输入法" "Fcitx5输入法" "EXIT"
-    do
-        case ${fcitx} in
-            "搜狗输入法")
-                break
-                Ipp ${os} fcitx-sogoupinyin
-                if [[ ${DESKTOP_SESSION} == "/usr/share/xsessions/plasma" ]] || [[ ${DESKTOP_SESSION} == "kde" ]] ; then
-                    Ipp ${os} kcm-fcitx
-                fi
-                echo -e "\033[33m KDE 桌面打开 Fcitx Configuration 添加 Keyboard Chinese 和 sogoupinyin 即可\033[0m"
-                ;;
-            "Fcitx5输入法")
-                Ipp ${os} fcitx5 fcitx5-chinese-addons fcitx5-chewing
-                Ipp ${os} fcitx5-qt fcitx5-gtk fcitx5-qt4-git
-                Ipp ${os} fcitx5-pinyin-zhwiki fcitx5-pinyin-moegirl
-                Ipp ${os} fcitx5-configtool
-                Ipp ${os} fcitx5-material-color noto-fonts-emoji noto-fonts-sc
-                # 图标存储在去不图床 https://7bu.top/
-                curl -o zh.svg https://7.dusays.com/2021/01/24/1f34aac60a1ca.svg
-                mv zh.svg /usr/share/icons/hicolor/48x48/apps/fcitx-pinyin.svg
-                kill `ps -A | grep fcitx5 | awk '{print $1}'` && fcitx5&
-                echo -e "\033[33m 打开 Fcitx 5 Configuration 添加 pinyin 即可\033[0m"
-                break
-                ;;
-            "EXIT")
-                exit 1
-                ;;
-            *)
-                echo -e "\033[43;37m 输入错误，请重新输入 \033[0m"
-        esac
-    done
+Fcitx5-Input(){
+    echo -e "\033[45;37m Fcitx 安装 Fcitx5 输入法 \033[0m"
+    Ipp ${os} fcitx5 fcitx5-chinese-addons fcitx5-chewing
+    Ipp ${os} fcitx5-qt fcitx5-gtk fcitx5-qt4-git
+    Ipp ${os} fcitx5-pinyin-zhwiki fcitx5-pinyin-moegirl
+    Ipp ${os} fcitx5-configtool
+    Ipp ${os} fcitx5-material-color noto-fonts-emoji noto-fonts-sc
+    # 判断桌面（必须使用 sudo -E 参数运行脚本才能识别）
+    if [ "$XDG_CURRENT_DESKTOP" = "" ] ; then
+        desktop=$(echo "$XDG_DATA_DIRS" | sed 's/.*\(xfce\|kde\|gnome\).*/\1/')
+    else
+        desktop=$XDG_CURRENT_DESKTOP
+    fi
+    desktop=${desktop,,}
+
+    case ${desktop} in
+        "xfce")
+            echo "xfce"
+            ;;
+        "kde" | "plasma")
+            Ipp ${os} kcm-fcitx5
+            ;;
+        "gnome")
+            Ipp ${os} fcitx5-config-qt
+            ;;
+        *)
+            echo ""
+    esac
+
+    # 图标存储在去不图床 https://7bu.top/
+    curl -o zh.svg https://7.dusays.com/2021/01/24/1f34aac60a1ca.svg
+    mv zh.svg /usr/share/icons/hicolor/48x48/apps/fcitx-pinyin.svg
     # 配置输入法环境变量
-    echo "INPUT_METHOD  DEFAULT=fcitx5" >> /home/$(logname)/.xprofile
+    echo "INPUT_METHOD  DEFAULT=fcitx5" > /home/$(logname)/.xprofile
     echo "GTK_IM_MODULE DEFAULT=fcitx5" >> /home/$(logname)/.xprofile
     echo "QT_IM_MODULE  DEFAULT=fcitx5" >> /home/$(logname)/.xprofile
     echo "XMODIFIERS    DEFAULT=\@im=fcitx5" >> /home/$(logname)/.xprofile
 
-    echo "INPUT_METHOD  DEFAULT=fcitx5" >> /etc/environment
+    echo "INPUT_METHOD  DEFAULT=fcitx5" > /etc/environment
     echo "GTK_IM_MODULE DEFAULT=fcitx5" >> /etc/environment
     echo "QT_IM_MODULE  DEFAULT=fcitx5" >> /etc/environment
     echo "XMODIFIERS    DEFAULT=\@im=fcitx5" >> /etc/environment
 
-    echo "INPUT_METHOD  DEFAULT=fcitx5" >> /home/$(logname)/.pam_environment
+    echo "INPUT_METHOD  DEFAULT=fcitx5" > /home/$(logname)/.pam_environment
     echo "GTK_IM_MODULE DEFAULT=fcitx5" >> /home/$(logname)/.pam_environment
     echo "QT_IM_MODULE  DEFAULT=fcitx5" >> /home/$(logname)/.pam_environment
     echo "XMODIFIERS    DEFAULT=\@im=fcitx5" >> /home/$(logname)/.pam_environment
 
-    cp /home/$(logname)/.pam_environment /home/$(logname)/.config/autostart
+    kill `ps -A | grep fcitx5 | awk '{print $1}'` && fcitx5&
+    echo -e "\033[33m 打开 Fcitx 5 Configuration ，Input Method 选项卡中将 pinyin 添加到美式键盘下面；设置激活输入法和切换快捷键 Trigger Input Method 为 Left Shift；Addons 选项卡 Classic User Inteface 选择主题，重启系统后生效\033[0m"
 }
 
 # 安装软件菜单
 Install_packages(){
     echo -e "\033[45;37m 软件列表 \033[0m"
     echo -e "\033[33m 建议：在安装软件之前先配置 ArchLinuxCN 源\033[0m"
+    echo -e "\033[33m 如果是安装 Fcitx5 输入法，请使用 sudo -E 参数运行当前脚本\033[0m"
     while true
     do
         echo -e "请输入编号选择您要安装的应用程序[1~n]"
-        select package in "配置CN源" "GIT&&SSH" "Gitkraken" "SVN" "on-my-zsh" "浏览器" "输入法" "科学上网" "网易云音乐" "QQ音乐" "TIM&&QQ" "微信" "微信小程序开发工具" "钉钉" "Telegram" "多线程下载工具" "BaiduPCS" "百度网盘" "eDEX-UI" "MEGAsync网盘" "OBS-STUDIO" "哔哩哔哩弹幕库" "Teamviewer" "WPS" "JDK" "XMind" "Drawio" "Eclipse" "MyEclipse" "Maven" "Tomcat" "Redis" "Docker" "MySQL&&MariaDB" "DataGrip" "DBeaver" "IntelliJIDEA" "Pycharm" "AndroidStudio" "VMware" "Virtualbok" "Visual Studio Code" "GitBook" "tldr" "xchm" "Krita" "GIMP" "Slack" "Goldendict" "有到云笔记" "Notion" "Jstock" "EXIT"
+        select package in "配置CN源" "GIT&&SSH" "Gitkraken" "SVN" "on-my-zsh" "浏览器" "Fcitx5输入法" "科学上网" "网易云音乐" "QQ音乐" "Spotify音乐" "TIM&&QQ" "微信" "微信小程序开发工具" "钉钉" "Telegram" "多线程下载工具" "BaiduPCS" "百度网盘" "eDEX-UI" "MEGAsync网盘" "OBS-STUDIO" "哔哩哔哩弹幕库" "Teamviewer" "WPS" "JDK" "XMind" "Drawio" "Eclipse" "MyEclipse" "Maven" "Tomcat" "Redis" "Docker" "MySQL&&MariaDB" "DataGrip" "DBeaver" "IntelliJIDEA" "Pycharm" "AndroidStudio" "VMware" "Virtualbok" "Visual Studio Code" "GitBook" "tldr" "xchm" "Krita" "GIMP" "Slack" "Goldendict" "有到云笔记" "Notion" "Jstock" "EXIT"
         do
             case ${package} in
                 "配置CN源")
@@ -1429,17 +1430,67 @@ Install_packages(){
                     Browsers
                     break
                     ;;
-                "输入法")
-                    Fcitx-Input
+                "Fcitx5输入法")
+                    Fcitx5-Input
                     break
                     ;;
-                "")
+                "科学上网")
+                    Ipp ${os} qv2ray qv2ray-plugin-trojan qv2ray-plugin-ssr-dev-git
+                    #下载 v2ray-core
+                    v2raycore_latest=$(curl -L "https://api.github.com/repos/v2fly/v2ray-core/releases/latest" | grep "tag_name" | head -n 1 | awk -F ":" '{print $2}' | sed 's/\"//g;s/,//g;s/ //g')
+                    curl -LO https://github.com/v2fly/v2ray-core/releases/download/${v2raycore_latest}/v2ray-linux-64.zip
+                    Ipp ${os} unzip
+                    unzip v2ray-linux-64.zip -d /usr/share/qv2ray/v2ray-core/
+                    rm -rf v2ray-linux-64.zip
+                    echo -e "\033[33m启动 Qv2ray → 首选项 → 内核设置，修改核心可执行文件路径为 /usr/share/qv2ray/v2ray-core/v2ray ，资源目录为 /usr/share/qv2ray/v2ray-core  ，设置完成测试没问题点击 OK 即可\033[0m"
                     break
                     ;;
-                "")
+                "网易云音乐")
+                    Ipp ${os} etease-cloud-music
+                    git clone https://github.com/HexChristmas/archlinux && cd archlinux/qcef
+                    sudo -u $(logname) makepkg -si
+                    sed -i "3,5s/^/#/" /opt/netease/netease-cloud-music/netease-cloud-music.bash
+                    echo "export XDG_CURRENT_DESKTOP=DDE" >> /opt/netease/netease-cloud-music/netease-cloud-music.bash
+                    cd ../../
+                    rm -rf archlinux
                     break
                     ;;
-                "")
+                "QQ音乐")
+                    Ipp ${os} qqmusic-bin
+                    break
+                    ;;
+                "Spotify音乐")
+                    Ipp ${os} spotify spicetify-cli spicetify-themes-git
+                    chmod a+wr /opt/spotify
+                    chmod a+wr /opt/spotify/Apps -R
+                    sudo -u $(logname) spicetify backup apply enable-devtool
+                    sudo -u $(logname) spicetify update
+                    # 配置主题
+                    cd /usr/share/spicetify-cli/Themes/Dribbblish
+                    cp dribbblish.js ../../Extensions
+                    sudo -u $(logname) spicetify config extensions dribbblish.js
+                    sudo -u $(logname) spicetify config current_theme Dribbblish color_scheme base
+                    sudo -u $(logname) spicetify config inject_css 1 replace_colors 1 overwrite_assets 1
+                    sudo -u $(logname) spicetify apply
+                    echo "选择想要使用的主题，样式来源https://github.com/morpheusthewhite/spicetify-themes/blob/master/Dribbblish/README.md"
+                    select spotify_theme in "Dracula" "White"
+                    do
+                        case ${spotify_theme} in
+                            "Dracula")
+                                sudo -u $(logname) spicetify config color_scheme dracula
+                                sudo -u $(logname) spicetify apply
+                                break
+                                ;;
+                            "White")
+                                sudo -u $(logname) spicetify config color_scheme white
+                                sudo -u $(logname) spicetify apply
+                                break
+                                ;;
+                            *)
+                                echo ""
+                        esac
+                    done
+
                     break
                     ;;
                 "")
