@@ -5,10 +5,10 @@ name: CI
 # 控制动作何时运行
 on:
   # 在推或拉请求事件上触发工作流，但仅针对主分支
-  push:
-    branches: [ main ]
-  pull_request:
-    branches: [ main ]
+  #push:
+    #branches: [ main ]
+  #pull_request:
+    #branches: [ main ]
 
   # 允许您从“操作”选项卡手动运行此工作流
   workflow_dispatch:
