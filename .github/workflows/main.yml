@@ -5,18 +5,14 @@ name: CI
 # 控制动作何时运行
 on:
   # 在推或拉请求事件上触发工作流，但仅针对主分支
-  #push:
-    #branches: [ main ]
-  #pull_request:
-    #branches: [ main ]
-
-  # 允许您从“操作”选项卡手动运行此工作流
-  workflow_dispatch:
+  push:
+    branches: [ main ]
 
 #工作流程运行由一个或多个可以顺序运行或同等运行的作业组成
 jobs:
   # 此工作流程包含一个 "build" 的作业任务
   build:
+    name: 我的第一个任务
     # 作业将运行的运行程序类型
     runs-on: ubuntu-latest
 
