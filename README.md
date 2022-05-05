@@ -1,8 +1,9 @@
 ### 使用方法
 ```bash
-curl -LO https://github.com/teaper/archlinux-install-script/releases/download/0.1.9/archlinux-install.sh
+curl -LO https://github.com/teaper/archlinux-install-script/releases/download/2022.05.01/archlinux-install.sh
 sudo bash archlinux-install.sh
 ```
+
 ### 功能
 - [x] 制作启动盘
   - [x] sha1sum 校验 iso 完整性
@@ -14,8 +15,8 @@ sudo bash archlinux-install.sh
   - [x] KDE+SDDM 
 - [x] 其他驱动
   - [x] 触摸板
-  - [ ] 蓝牙
-  - [ ] 打印机
+  - [x] 蓝牙
+  - [x] 打印机
 - [x] 安装软件
   - [x] ArchLinuxCN 源
   - [x] GIT&SSH
