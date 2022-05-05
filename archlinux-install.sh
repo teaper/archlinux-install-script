@@ -1226,9 +1226,28 @@ Install_drives(){
                     break
                     ;;
                 "蓝牙")
+                    echo -e "\033[45;37m 安装蓝牙驱动 \033[0m"
+                    Ipp %{os} bluez bluez-utils pipewire pipewire-pulse pipewire-jack pipewire-alsa
+                    echo "启动蓝牙服务"
+                    systemctl --user start pipewire pipewire-pulse pipewire-media-session
+                    systemctl --user enable pipewire pipewire-pulse pipewire-media-session
+                    systemctl enable bluetooth.service
+                    systemctl start bluetooth.service
+                    pulseaudio -k
+                    pulseaudio --start
+                    usermod -a -G lp $USER
+                    sed -i 's/AutoEnable.*$/AutoEnable=true/g' /etc/bluetooth/main.conf
+                    Ipp %{os} ansible
+                    ansible localhost -m lineinfile -a "path=/etc/bluetooth/main.conf line='AutoEnable=true'"
                     break
                     ;;
                 "打印机")
+                    echo -e "\033[45;37m 安装打印机驱动 \033[0m"
+                    Ipp %{os} cups ghostscript gsfonts hplip hpoj
+                    systemctl restart avahi-daemon.service
+                    systemctl start cups-browsed.service
+                    systemctl enable cups-browsed.service
+                    echo "配置成功： http://localhost:631"
                     break
                     ;;
                 "EXIT")
